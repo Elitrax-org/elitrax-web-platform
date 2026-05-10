@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Elitrax — Plataforma Web</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#060E1A;font-family:'DM Sans',sans-serif;overflow:hidden}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:rgba(70,199,240,0.2);border-radius:2px}
+input::placeholder{color:rgba(255,255,255,0.25)}
+button{cursor:pointer;transition:opacity .15s,transform .1s}
+button:active{opacity:.82;transform:scale(.98)}
+select{cursor:pointer}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<!-- libs: preact + hooks + htm, all local -->
+<script src="elitrax-libs.js"></script>
+<!-- tokens + data -->
+<script src="elitrax-tokens.js"></script>
+<!-- setup htm binding -->
+<script>
+const {h, render} = preact;
+const {useState, useEffect, useCallback} = preactHooks;
+const html = htm.bind(h);
+</script>
+<!-- components, split into small files -->
+<script src="elitrax-shared.js"></script>
+<script src="elitrax-login.js"></script>
+<script src="elitrax-dashboard.js"></script>
+<script src="elitrax-optimizacion.js"></script>
+<script src="elitrax-vitrina.js"></script>
+<script src="elitrax-app.js"></script>
+</body>
+</html>

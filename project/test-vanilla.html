@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Test Vanilla</title>
+<style>
+body { background: #060E1A; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+.box { text-align: center; }
+h1 { color: #46C7F0; font-size: 2rem; margin-bottom: 1rem; }
+button { background: #F36C3A; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+#count { font-size: 3rem; font-weight: bold; color: #F36C3A; margin: 1rem 0; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>ELITRAX — Test</h1>
+  <div id="count">0</div>
+  <button onclick="document.getElementById('count').textContent = +document.getElementById('count').textContent + 1">Click me</button>
+  <p style="margin-top:1rem;color:rgba(255,255,255,0.5)">Si ves esto, el preview funciona ✓</p>
+</div>
+</body>
+</html>

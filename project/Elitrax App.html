@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Elitrax — App Mobile Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #060E1A; font-family: 'DM Sans', sans-serif; }
+  body { display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
+
+  /* Scrollbar hidden */
+  ::-webkit-scrollbar { display: none; }
+
+  /* Screen entrance animation */
+  @keyframes screenIn {
+    from { opacity: 0; transform: translateX(18px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Spin for radar */
+  @keyframes spin {
+    from { transform: rotate(-90deg); }
+    to   { transform: rotate(270deg); }
+  }
+
+  /* Pulse for live dot */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.5; transform: scale(0.85); }
+  }
+
+  /* Bounce for typing dots */
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40%           { transform: translateY(-5px); }
+  }
+
+  @keyframes uploadBar {
+    from { width: 0%; }
+    to   { width: 85%; }
+  }
+
+  /* Input placeholder color */
+  input::placeholder { color: rgba(255,255,255,0.28); }
+  button { transition: opacity 0.15s; }
+  button:active { opacity: 0.78; }
+</style>
+</head>
+<body>
+
+<!-- iOS device frame wrapper -->
+<div id="frame-root"></div>
+
+<!-- Load scripts in order -->
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="elitrax-data.jsx"></script>
+<script type="text/babel" src="elitrax-auth.jsx"></script>
+<script type="text/babel" src="elitrax-screens.jsx"></script>
+<script type="text/babel" src="elitrax-sport.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="elitrax-vitrina.jsx"></script>
+<script type="text/babel" src="elitrax-wizard.jsx"></script>
+<script type="text/babel" src="elitrax-root.jsx"></script>
+
+<!-- Mount everything in one tree -->
+<script type="text/babel">
+const { IOSDevice, ElitraxApp } = window;
+const { TweaksPanel, TweakSection, TweakRadio, TweakColor, TweakText, TweakToggle, TweakSlider, useTweaks } = window;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "plan": "PRO+",
+  "accentColor": "#46C7F0",
+  "userName": "Martín",
+  "fontSize": 1,
+  "showExplosivity": true,
+  "liveGlowIntensity": 0.45
+}/*EDITMODE-END*/;
+
+function Root() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // Expose tweaks globally so App can read them
+  window.__tweaks = tweaks;
+
+  return (
+    <>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minHeight: '100vh', padding: '20px',
+        background: 'radial-gradient(ellipse at 40% 30%, rgba(70,199,240,0.06) 0%, transparent 60%), #060E1A',
+      }}>
+        <IOSDevice dark={true} width={393} height={852}>
+          <ElitraxApp tweaks={tweaks} />
+        </IOSDevice>
+      </div>
+
+      {/* TweaksPanel OUTSIDE the device frame so it's never clipped */}
+      <TweaksPanel>
+        <TweakSection label="Usuario">
+          <TweakText   label="Nombre"  tkey="userName" tweaks={tweaks} setTweak={setTweak} />
+          <TweakRadio  label="Plan"    tkey="plan"     tweaks={tweaks} setTweak={setTweak}
+            options={['BASIC','PRO','PRO+']} />
+        </TweakSection>
+        <TweakSection label="Visual">
+          <TweakColor  label="Color acento"       tkey="accentColor"       tweaks={tweaks} setTweak={setTweak} />
+          <TweakSlider label="Escala texto"        tkey="fontSize"          tweaks={tweaks} setTweak={setTweak} min={0.85} max={1.15} step={0.05} />
+          <TweakSlider label="Intensidad glow"     tkey="liveGlowIntensity" tweaks={tweaks} setTweak={setTweak} min={0.1} max={0.8} step={0.05} />
+        </TweakSection>
+        <TweakSection label="Métricas">
+          <TweakToggle label="Mostrar Explosividad" tkey="showExplosivity" tweaks={tweaks} setTweak={setTweak} />
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('frame-root')).render(<Root />);
+</script>
+
+</body>
+</html>

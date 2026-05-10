@@ -1,0 +1,35 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  background: #060E1A;
+  font-family: 'DM Sans', sans-serif;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: rgba(70,199,240,0.2); border-radius: 2px; }
+
+input::placeholder { color: rgba(255,255,255,0.25); }
+
+button { cursor: pointer; transition: opacity .15s, transform .1s; }
+button:active { opacity: .82; transform: scale(.98); }
+
+select { cursor: pointer; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .4; }
+}

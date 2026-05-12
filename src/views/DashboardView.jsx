@@ -1,13 +1,73 @@
+import { useState, useMemo, useEffect } from 'react'
 import { T, glass, PLAYERS, SESSIONS, WEEKLY, initials } from '../data'
 import Badge from '../components/Badge'
 import MiniBar from '../components/MiniBar'
+import LoadingSpinner from '../components/LoadingSpinner'
+import EmptyState from '../components/EmptyState'
+import NewSessionModal from '../components/NewSessionModal'
+import PlayerDetailModal from '../components/PlayerDetailModal'
 
 export default function DashboardView() {
+  const [loading,      setLoading]      = useState(true)
+  const [searchQuery,  setSearchQuery]  = useState('')
+  const [sortBy,       setSortBy]       = useState({ key: null, dir: 'asc' })
+  const [showNewSession, setShowNewSession] = useState(false)
+  const [selectedPlayer, setSelectedPlayer] = useState(null)
+  const [sessions,     setSessions]     = useState(SESSIONS)
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 400)
+    return () => clearTimeout(t)
+  }, [])
+
   const alertas = PLAYERS.filter(p => p.estado !== 'ok')
   const avgKm   = (PLAYERS.reduce((s, p) => s + p.km,      0) / PLAYERS.length).toFixed(1)
   const avgSpr  = Math.round(PLAYERS.reduce((s, p) => s + p.sprints, 0) / PLAYERS.length)
   const maxVel  = Math.max(...PLAYERS.map(p => p.vel)).toFixed(1)
   const hiLoad  = PLAYERS.filter(p => p.carga >= 85).length
+
+  const handleSort = key => {
+    setSortBy(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' })
+  }
+
+  const SORTABLE = ['km', 'sprints', 'vel', 'carga']
+
+  const filteredPlayers = useMemo(() => {
+    let list = [...PLAYERS]
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      list = list.filter(p => p.name.toLowerCase().includes(q))
+    }
+
+    if (sortBy.key) {
+      list.sort((a, b) => {
+        const av = a[sortBy.key]
+        const bv = b[sortBy.key]
+        return sortBy.dir === 'asc' ? av - bv : bv - av
+      })
+    }
+
+    return list
+  }, [searchQuery, sortBy])
+
+  const handleNewSession = data => {
+    const newS = { id: Date.now(), date: data.fecha, type: data.tipo, rival: data.rival, km: data.km, sprints: data.sprints, duration: data.duration }
+    setSessions(prev => [newS, ...prev])
+  }
+
+  const sortIcon = key => {
+    if (sortBy.key !== key) return <span style={{ color:T.faint, marginLeft:3, fontSize:8 }}>↕</span>
+    return <span style={{ color:T.cian, marginLeft:3, fontSize:8 }}>{sortBy.dir === 'asc' ? '▲' : '▼'}</span>
+  }
+
+  if (loading) {
+    return (
+      <div style={{ height:'100%', overflowY:'auto', padding:'28px 32px' }}>
+        <LoadingSpinner text="Cargando dashboard..." />
+      </div>
+    )
+  }
 
   return (
     <div style={{ height:'100%', overflowY:'auto', padding:'28px 32px' }}>
@@ -25,7 +85,10 @@ export default function DashboardView() {
             <div style={{ width:7, height:7, borderRadius:'50%', background:T.green, boxShadow:`0 0 6px ${T.green}` }} />
             <span style={{ fontFamily:T.dm, fontSize:12, color:T.white }}>11 dispositivos activos</span>
           </div>
-          <button style={{ ...glass(10), padding:'8px 16px', border:`1px solid rgba(243,108,58,.35)`, fontFamily:T.exo, fontWeight:600, fontSize:12, color:T.naranja, letterSpacing:.8, background:'rgba(243,108,58,.10)' }}>
+          <button
+            onClick={() => setShowNewSession(true)}
+            style={{ ...glass(10), padding:'8px 16px', border:`1px solid rgba(243,108,58,.35)`, fontFamily:T.exo, fontWeight:600, fontSize:12, color:T.naranja, letterSpacing:.8, background:'rgba(243,108,58,.10)' }}
+          >
             + NUEVA SESIÓN
           </button>
         </div>
@@ -68,25 +131,46 @@ export default function DashboardView() {
 
         {/* Player table */}
         <div style={{ ...glass(14), overflow:'hidden' }}>
-          <div style={{ padding:'16px 20px', borderBottom:`1px solid ${T.border}` }}>
+          <div style={{ padding:'14px 20px', borderBottom:`1px solid ${T.border}`, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
             <div style={{ fontFamily:T.exo, fontWeight:600, fontSize:15, color:T.white }}>Plantel — Última sesión</div>
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Buscar jugador..."
+              style={{ padding:'7px 12px', borderRadius:8, background:T.bg2, border:`1px solid ${T.border}`, color:T.white, fontFamily:T.dm, fontSize:12, outline:'none', width:180 }}
+            />
           </div>
+          {filteredPlayers.length === 0 ? (
+            <EmptyState icon="🔍" title="Sin resultados" subtitle="No hay jugadores que coincidan con tu búsqueda." />
+          ) : (
           <div style={{ overflowY:'auto', maxHeight:320 }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
               <thead>
                 <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                  {['#','Jugador','Pos.','Dist.','Sprints','Vel.','Carga','Estado'].map(h => (
+                  {['#','Jugador','Pos.'].map(h => (
                     <th key={h} style={{ padding:'8px 12px', fontFamily:T.dm, fontSize:10, color:T.faint, fontWeight:500, textAlign:'left', borderBottom:`1px solid ${T.border}` }}>{h}</th>
                   ))}
+                  {[
+                    { key:'km',      label:'Dist.' },
+                    { key:'sprints', label:'Sprints' },
+                    { key:'vel',     label:'Vel.' },
+                    { key:'carga',   label:'Carga' },
+                  ].map(h => (
+                    <th key={h.key} onClick={() => handleSort(h.key)} style={{ padding:'8px 12px', fontFamily:T.dm, fontSize:10, color: sortBy.key === h.key ? T.cian : T.faint, fontWeight: sortBy.key === h.key ? 600 : 500, textAlign:'left', borderBottom:`1px solid ${T.border}`, cursor:'pointer', userSelect:'none', whiteSpace:'nowrap' }}>
+                      {h.label}{sortIcon(h.key)}
+                    </th>
+                  ))}
+                  <th style={{ padding:'8px 12px', fontFamily:T.dm, fontSize:10, color:T.faint, fontWeight:500, textAlign:'left', borderBottom:`1px solid ${T.border}` }}>Estado</th>
                 </tr>
               </thead>
               <tbody>
-                {PLAYERS.map((p, i) => {
+                {filteredPlayers.map((p, i) => {
                   const ec = p.estado==='ok' ? T.green : p.estado==='alerta' ? T.naranja : T.red
                   const el = p.estado==='ok' ? 'OK'    : p.estado==='alerta' ? 'Alerta'  : 'Lesión'
                   return (
                     <tr
                       key={p.id}
+                      onClick={() => setSelectedPlayer(p)}
                       style={{ borderBottom:`1px solid ${T.border}`, background: i%2===0 ? 'transparent' : 'rgba(255,255,255,.015)', cursor:'pointer' }}
                       onMouseEnter={e => e.currentTarget.style.background='rgba(70,199,240,.05)'}
                       onMouseLeave={e => e.currentTarget.style.background = i%2===0 ? 'transparent' : 'rgba(255,255,255,.015)'}
@@ -101,9 +185,9 @@ export default function DashboardView() {
                         </div>
                       </td>
                       <td style={{ padding:'9px 12px', fontFamily:T.dm, fontSize:11, color:T.muted }}>{p.pos}</td>
-                      <td style={{ padding:'9px 12px', fontFamily:T.mono, fontSize:12, color:T.cian, fontWeight:700 }}>{p.km}</td>
-                      <td style={{ padding:'9px 12px', fontFamily:T.mono, fontSize:12, color:T.white }}>{p.sprints}</td>
-                      <td style={{ padding:'9px 12px', fontFamily:T.mono, fontSize:12, color:T.white }}>{p.vel}</td>
+                      <td style={{ padding:'9px 12px', fontFamily:T.mono, fontSize:12, color: sortBy.key==='km' ? T.cian : T.white, fontWeight: sortBy.key==='km' ? 700 : 400 }}>{p.km}</td>
+                      <td style={{ padding:'9px 12px', fontFamily:T.mono, fontSize:12, color: sortBy.key==='sprints' ? T.cian : T.white, fontWeight: sortBy.key==='sprints' ? 700 : 400 }}>{p.sprints}</td>
+                      <td style={{ padding:'9px 12px', fontFamily:T.mono, fontSize:12, color: sortBy.key==='vel' ? T.cian : T.white, fontWeight: sortBy.key==='vel' ? 700 : 400 }}>{p.vel}</td>
                       <td style={{ padding:'9px 12px' }}>
                         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                           <MiniBar val={p.carga} width={56} />
@@ -117,6 +201,7 @@ export default function DashboardView() {
               </tbody>
             </table>
           </div>
+          )}
         </div>
 
         {/* Right column */}
@@ -153,11 +238,14 @@ export default function DashboardView() {
             <div style={{ padding:'14px 16px', borderBottom:`1px solid ${T.border}` }}>
               <div style={{ fontFamily:T.exo, fontWeight:600, fontSize:13, color:T.white }}>Últimas sesiones</div>
             </div>
+            {sessions.length === 0 ? (
+              <EmptyState icon="📋" title="Sin sesiones" subtitle="Aún no hay sesiones registradas." />
+            ) : (
             <div style={{ padding:'4px 0' }}>
-              {SESSIONS.map((s, i) => (
+              {sessions.map((s, i) => (
                 <div
                   key={s.id}
-                  style={{ padding:'10px 16px', display:'flex', alignItems:'center', gap:10, borderBottom: i<3 ? `1px solid ${T.border}` : 'none', cursor:'pointer' }}
+                  style={{ padding:'10px 16px', display:'flex', alignItems:'center', gap:10, borderBottom: i<sessions.length-1 ? `1px solid ${T.border}` : 'none', cursor:'pointer' }}
                   onMouseEnter={e => e.currentTarget.style.background='rgba(70,199,240,.04)'}
                   onMouseLeave={e => e.currentTarget.style.background='transparent'}
                 >
@@ -173,6 +261,7 @@ export default function DashboardView() {
                 </div>
               ))}
             </div>
+            )}
           </div>
 
           {/* Load distribution */}
@@ -197,6 +286,14 @@ export default function DashboardView() {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      {showNewSession && (
+        <NewSessionModal onClose={() => setShowNewSession(false)} onCreate={handleNewSession} />
+      )}
+      {selectedPlayer && (
+        <PlayerDetailModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />
+      )}
     </div>
   )
 }

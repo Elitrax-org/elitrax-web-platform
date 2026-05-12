@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { T } from './data'
+import { T } from './tokens'
 import Sidebar   from './components/Sidebar'
 import Topbar    from './components/Topbar'
 import LoginPage from './views/LoginPage'

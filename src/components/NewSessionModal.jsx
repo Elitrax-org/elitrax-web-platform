@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { T, glass } from '../data'
+import { T, glass } from '../tokens'
 
 export default function NewSessionModal({ onClose, onCreate }) {
   const [tipo,  setTipo]  = useState('Entrenamiento')

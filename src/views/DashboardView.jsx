@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
-import { T, glass, PLAYERS, SESSIONS, WEEKLY, initials } from '../data'
+import { T, glass } from '../tokens'
+import { PLAYERS, SESSIONS, WEEKLY, initials } from '../data'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import Badge from '../components/Badge'
 import MiniBar from '../components/MiniBar'

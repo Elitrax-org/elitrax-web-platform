@@ -1,4 +1,4 @@
-import { T } from '../data'
+import { T } from '../tokens'
 
 export default function LoadingSpinner({ text = 'Cargando...' }) {
   return (

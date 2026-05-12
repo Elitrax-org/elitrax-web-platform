@@ -1,4 +1,4 @@
-import { T, glass } from '../data'
+import { T, glass } from '../tokens'
 
 export default function PlaceholderView({ title, icon, sub }) {
   return (

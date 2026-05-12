@@ -1,4 +1,4 @@
-import { T, glass } from '../data'
+import { T, glass } from '../tokens'
 
 export default function Topbar() {
   const d = new Date().toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' })

@@ -1,4 +1,4 @@
-import { T } from '../data'
+import { T } from '../tokens'
 
 export default function EmptyState({ icon, title, subtitle, cta, onCta }) {
   return (

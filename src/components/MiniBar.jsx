@@ -1,4 +1,4 @@
-import { T } from '../data'
+import { T } from '../tokens'
 
 export default function MiniBar({ val, max = 100, width = 80 }) {
   const c = val >= 90 ? T.red : val >= 75 ? T.naranja : T.cian

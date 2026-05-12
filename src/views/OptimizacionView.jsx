@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { T, glass, PLAYERS, TACTICAS, ESTILOS, VAR_DEF, calcScore, genVals, initials } from '../data'
+import { T, glass } from '../tokens'
+import { PLAYERS, TACTICAS, ESTILOS, VAR_DEF, calcScore, genVals, initials } from '../data'
 import Badge from '../components/Badge'
 import ScoreBar from '../components/ScoreBar'
 

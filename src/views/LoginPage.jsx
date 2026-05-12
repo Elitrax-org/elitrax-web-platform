@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { T, glass } from '../data'
+import { T, glass } from '../tokens'
 import Logo from '../components/Logo'
 
 export default function LoginPage({ onLogin }) {

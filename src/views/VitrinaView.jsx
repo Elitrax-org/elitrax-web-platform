@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { T, glass, VP, initials } from '../data'
+import { T, glass } from '../tokens'
+import { VP, initials } from '../data'
 import Badge from '../components/Badge'
 
 const POSF = ['Todos', 'Arquero', 'Defensor', 'Mediocampista', 'Delantero']

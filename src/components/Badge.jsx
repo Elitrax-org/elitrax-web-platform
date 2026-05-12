@@ -1,4 +1,4 @@
-import { T } from '../data'
+import { T } from '../tokens'
 
 export default function Badge({ label, color = T.cian }) {
   const bg =

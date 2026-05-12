@@ -1,4 +1,5 @@
-import { T, glass, NAV, GROUPS } from '../data'
+import { T, glass } from '../tokens'
+import { NAV, GROUPS } from '../data'
 import Logo from './Logo'
 import Badge from './Badge'
 

@@ -1,4 +1,5 @@
-import { T, glass, PLAYERS, initials } from '../data'
+import { T, glass } from '../tokens'
+import { PLAYERS, initials } from '../data'
 import Badge from './Badge'
 
 export default function PlayerDetailModal({ player, onClose }) {

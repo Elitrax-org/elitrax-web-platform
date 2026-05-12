@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { T, glass, PLAYERS, SESSIONS, WEEKLY, initials } from '../data'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import Badge from '../components/Badge'
 import MiniBar from '../components/MiniBar'
 import LoadingSpinner from '../components/LoadingSpinner'
@@ -7,7 +8,21 @@ import EmptyState from '../components/EmptyState'
 import NewSessionModal from '../components/NewSessionModal'
 import PlayerDetailModal from '../components/PlayerDetailModal'
 
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(window.matchMedia(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const handler = e => setMatches(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [query])
+  return matches
+}
+
 export default function DashboardView() {
+  const isMobile  = useMediaQuery('(max-width: 768px)')
+  const isTablet  = useMediaQuery('(max-width: 1024px)')
+  const weeklyData = WEEKLY.map((d, i) => ({ ...d, label: ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][i] }))
   const [loading,      setLoading]      = useState(true)
   const [searchQuery,  setSearchQuery]  = useState('')
   const [sortBy,       setSortBy]       = useState({ key: null, dir: 'asc' })
@@ -19,7 +34,6 @@ export default function DashboardView() {
     const t = setTimeout(() => setLoading(false), 400)
     return () => clearTimeout(t)
   }, [])
-
   const alertas = PLAYERS.filter(p => p.estado !== 'ok')
   const avgKm   = (PLAYERS.reduce((s, p) => s + p.km,      0) / PLAYERS.length).toFixed(1)
   const avgSpr  = Math.round(PLAYERS.reduce((s, p) => s + p.sprints, 0) / PLAYERS.length)
@@ -70,12 +84,12 @@ export default function DashboardView() {
   }
 
   return (
-    <div style={{ height:'100%', overflowY:'auto', padding:'28px 32px' }}>
+    <div style={{ height:'100%', overflowY:'auto', padding: isMobile ? '16px' : isTablet ? '20px 24px' : '28px 32px' }}>
 
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:28 }}>
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom: isMobile ? 18 : 28, flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 12 : 0 }}>
         <div>
-          <div style={{ fontFamily:T.exo, fontWeight:700, fontSize:26, color:T.white }}>Dashboard</div>
+          <div style={{ fontFamily:T.exo, fontWeight:700, fontSize: isMobile ? 20 : 26, color:T.white }}>Dashboard</div>
           <div style={{ fontFamily:T.dm, fontSize:13, color:T.muted, marginTop:3 }}>
             Última sesión: <span style={{ color:T.white }}>30 Abr · Partido vs Talleres · 90 min</span>
           </div>
@@ -108,7 +122,7 @@ export default function DashboardView() {
       )}
 
       {/* KPI cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:24 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: isMobile ? 10 : 14, marginBottom: isMobile ? 16 : 24 }}>
         {[
           { l:'Distancia promedio', v:avgKm,  u:'km',       c:T.cian,   s:'↑ 8% vs semana anterior'   },
           { l:'Sprints promedio',   v:avgSpr,  u:'/ses',     c:T.cian,   s:'↑ 12% vs semana anterior'  },
@@ -127,7 +141,7 @@ export default function DashboardView() {
       </div>
 
       {/* Main content grid */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 340px', gap:18, marginBottom:18 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isTablet ? '1fr' : '1fr 340px', gap: isMobile ? 12 : 18, marginBottom:18 }}>
 
         {/* Player table */}
         <div style={{ ...glass(14), overflow:'hidden' }}>
@@ -210,22 +224,26 @@ export default function DashboardView() {
           {/* Weekly chart */}
           <div style={{ ...glass(14), padding:'16px 18px' }}>
             <div style={{ fontFamily:T.exo, fontWeight:600, fontSize:13, color:T.white, marginBottom:14 }}>Distancia semanal</div>
-            <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:72 }}>
-              {WEEKLY.map((d, i) => {
-                const mx  = Math.max(...WEEKLY.map(x => x.km), 1)
-                const hh  = d.km > 0 ? (d.km / mx) * 60 : 4
-                const isT = i === 1
-                return (
-                  <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-                    <div style={{ width:'100%', height:60, display:'flex', alignItems:'flex-end' }}>
-                      <div style={{ width:'100%', height:hh, background: d.km===0 ? 'rgba(255,255,255,.05)' : isT ? T.cian : 'rgba(70,199,240,.35)', borderRadius:4 }} />
-                    </div>
-                    <span style={{ fontFamily:T.dm, fontSize:9, color: isT ? T.cian : T.faint }}>{d.day}</span>
-                  </div>
-                )
-              })}
+            <div style={{ height: isMobile ? 120 : 140 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weeklyData} margin={{ top:4, right:4, bottom:0, left:-16 }}>
+                  <XAxis dataKey="label" tick={{ fill:'rgba(255,255,255,0.22)', fontSize:10, fontFamily:'DM Sans' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill:'rgba(255,255,255,0.22)', fontSize:9, fontFamily:'JetBrains Mono' }} axisLine={false} tickLine={false} width={28} />
+                  <Tooltip
+                    contentStyle={{ background:'rgba(6,14,26,.92)', border:'1px solid rgba(70,199,240,.2)', borderRadius:8, fontSize:12, fontFamily:'DM Sans', boxShadow:'0 4px 20px rgba(0,0,0,.4)' }}
+                    labelStyle={{ color:'#FFFFFF', fontWeight:600 }}
+                    formatter={v => [`${v} km`, 'Distancia']}
+                    cursor={{ fill:'rgba(70,199,240,.06)' }}
+                  />
+                  <Bar dataKey="km" radius={[4,4,0,0]} maxBarSize={32}>
+                    {weeklyData.map((d, i) => (
+                      <Cell key={i} fill={d.km===0 ? 'rgba(255,255,255,.05)' : i===1 ? '#46C7F0' : 'rgba(70,199,240,.35)'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-            <div style={{ display:'flex', justifyContent:'space-between', marginTop:10 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', marginTop:8 }}>
               <span style={{ fontFamily:T.dm, fontSize:11, color:T.muted }}>Total semana</span>
               <span style={{ fontFamily:T.mono, fontSize:13, color:T.cian, fontWeight:700 }}>
                 {WEEKLY.reduce((s, d) => s + d.km, 0).toFixed(1)} km

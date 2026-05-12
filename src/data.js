@@ -13,10 +13,18 @@ export const PLAYERS = [
 ];
 
 export const SESSIONS = [
-  { id:1, date:'30 Abr', type:'Partido',       rival:'Talleres',   km:9.8,  sprints:27, duration:'90 min' },
-  { id:2, date:'28 Abr', type:'Entrenamiento', rival:'',           km:7.2,  sprints:18, duration:'75 min' },
-  { id:3, date:'26 Abr', type:'Partido',       rival:'Racing Cba', km:10.1, sprints:29, duration:'90 min' },
-  { id:4, date:'24 Abr', type:'Entrenamiento', rival:'',           km:8.4,  sprints:22, duration:'80 min' },
+  { id:1, date:'30 Abr', duration:'90 min', type:'Partido', rival:'Talleres',
+    distance:9.8, maxSpeed:32.1, avgSpeed:13.2, sprints:27,
+    acels:42, jumps:8, impacts:156, heatZone:'Mediocampo izq.', explosivity:78 },
+  { id:2, date:'28 Abr', duration:'75 min', type:'Entrenamiento', rival:'',
+    distance:7.2, maxSpeed:28.4, avgSpeed:10.8, sprints:18,
+    acels:31, jumps:5, impacts:98, heatZone:'Centro', explosivity:64 },
+  { id:3, date:'26 Abr', duration:'90 min', type:'Partido', rival:'Racing Cba',
+    distance:10.1, maxSpeed:33.8, avgSpeed:14.1, sprints:29,
+    acels:47, jumps:9, impacts:172, heatZone:'Banda izquierda', explosivity:85 },
+  { id:4, date:'24 Abr', duration:'80 min', type:'Entrenamiento', rival:'',
+    distance:8.6, maxSpeed:29.2, avgSpeed:11.6, sprints:22,
+    acels:38, jumps:7, impacts:121, heatZone:'Mediocampo', explosivity:71 },
 ];
 
 export const WEEKLY = [

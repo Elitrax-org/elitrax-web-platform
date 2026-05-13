@@ -2,8 +2,10 @@ import { T, glass } from '../tokens'
 import { NAV, GROUPS } from '../data'
 import Logo from './Logo'
 import Badge from './Badge'
+import { useUser } from '../context/UserContext'
 
-export default function Sidebar({ active, onChange, role, onSignOut }) {
+export default function Sidebar({ active, onChange, onSignOut }) {
+  const { user } = useUser()
   return (
     <div style={{
       width: 220, height: '100vh', flexShrink: 0,
@@ -24,14 +26,7 @@ export default function Sidebar({ active, onChange, role, onSignOut }) {
             Fútbol 11 · Temporada 2026
           </div>
           <div style={{ marginTop:6 }}>
-            <Badge
-              label={
-                role==='dt'    ? 'Director Técnico'    :
-                role==='pf'    ? 'Preparador Físico'   :
-                role==='scout' ? 'Scout' : 'Analista'
-              }
-              color={T.cian}
-            />
+            <Badge label={user?.label || 'Director Técnico'} color={T.cian} />
           </div>
         </div>
       </div>
@@ -87,11 +82,11 @@ export default function Sidebar({ active, onChange, role, onSignOut }) {
             display:'flex', alignItems:'center', justifyContent:'center',
             fontFamily:T.exo, fontWeight:700, fontSize:13, color:T.bg, flexShrink:0,
           }}>
-            RM
+            {user?.initials || 'RM'}
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontFamily:T.dm, fontSize:12, fontWeight:600, color:T.white, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-              Prof. R. Méndez
+              {user?.name || 'Prof. R. Méndez'}
             </div>
             <div style={{ fontFamily:T.dm, fontSize:10, color:T.muted }}>PRO+</div>
           </div>

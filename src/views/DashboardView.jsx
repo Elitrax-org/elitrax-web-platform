@@ -67,7 +67,9 @@ export default function DashboardView() {
   }, [searchQuery, sortBy])
 
   const handleNewSession = data => {
-    const newS = { id: Date.now(), date: data.fecha, type: data.tipo, rival: data.rival, km: data.km, sprints: data.sprints, duration: data.duration }
+    const newS = { id: Date.now(), date: data.fecha, type: data.tipo, rival: data.rival, duration: data.duration,
+      distance: data.distance, maxSpeed: data.maxSpeed, avgSpeed: data.avgSpeed, sprints: data.sprints,
+      acels: data.acels, jumps: data.jumps, impacts: data.impacts, heatZone: data.heatZone, explosivity: data.explosivity }
     setSessions(prev => [newS, ...prev])
   }
 
@@ -274,7 +276,7 @@ export default function DashboardView() {
                     <div style={{ fontFamily:T.dm, fontSize:10, color:T.muted }}>{s.date} · {s.duration}</div>
                   </div>
                   <div style={{ textAlign:'right' }}>
-                    <div style={{ fontFamily:T.mono, fontSize:12, color:T.cian }}>{s.km} km</div>
+                    <div style={{ fontFamily:T.mono, fontSize:12, color:T.cian }}>{s.distance} km</div>
                     <div style={{ fontFamily:T.dm, fontSize:10, color:T.faint }}>{s.sprints} spr.</div>
                   </div>
                 </div>

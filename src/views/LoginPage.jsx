@@ -3,20 +3,29 @@ import { T, glass } from '../tokens'
 import Logo from '../components/Logo'
 import { useUser } from '../context/UserContext'
 import { useToast } from '../context/ToastContext'
+import { useTeam } from '../context/TeamContext'
+
+const DEMO_ACCOUNTS = [
+  { email:'futbol@elitrax.com',    pass:'demo1234', sport:'football',   label:'Fútbol',  icon:'⚽', color:'#46C7F0' },
+  { email:'rugby@elitrax.com',     pass:'demo1234', sport:'rugby',      label:'Rugby',   icon:'🏉', color:'#FF5B5B' },
+  { email:'hockey@elitrax.com',    pass:'demo1234', sport:'hockey',     label:'Hockey',  icon:'🏑', color:'#4ADE80' },
+  { email:'basquet@elitrax.com',   pass:'demo1234', sport:'basketball', label:'Básquet', icon:'🏀', color:'#F36C3A' },
+]
 
 export default function LoginPage() {
-  const { login } = useUser()
-  const toast     = useToast()
-  const [email,   setEmail]   = useState('dt@atleticobel.com.ar')
-  const [pass,    setPass]    = useState('demo1234')
+  const { login }    = useUser()
+  const { loginAs }  = useTeam()
+  const toast        = useToast()
+  const [email,   setEmail]   = useState('')
+  const [pass,    setPass]    = useState('')
   const [loading, setLoading] = useState(false)
   const [err,     setErr]     = useState('')
 
   const validate = () => {
-    if (!email.trim())                   return 'Ingresá tu correo'
-    if (!email.includes('@'))             return 'Correo inválido'
-    if (!pass)                            return 'Ingresá tu contraseña'
-    if (pass.length < 4)                  return 'Mínimo 4 caracteres'
+    if (!email.trim())        return 'Ingresá tu correo'
+    if (!email.includes('@')) return 'Correo inválido'
+    if (!pass)                return 'Ingresá tu contraseña'
+    if (pass.length < 4)      return 'Mínimo 4 caracteres'
     return null
   }
 
@@ -26,15 +35,23 @@ export default function LoginPage() {
     setErr('')
     setLoading(true)
     setTimeout(() => {
-      if (Math.random() < 0.1) {
+      const account = DEMO_ACCOUNTS.find(a => a.email === email.trim() && a.pass === pass)
+      if (!account) {
         setLoading(false)
-        setErr('Error de conexión. Intentá de nuevo.')
-        toast.error('No se pudo conectar con el servidor.')
+        setErr('Credenciales incorrectas.')
+        toast.error('Credenciales incorrectas.')
         return
       }
+      loginAs(account.sport)
       login()
-      toast.success('Inicio de sesión exitoso. Bienvenido.')
-    }, 1400)
+      toast.success(`Bienvenido — cuenta ${account.label} cargada.`)
+    }, 1000)
+  }
+
+  const fillDemo = (account) => {
+    setEmail(account.email)
+    setPass(account.pass)
+    setErr('')
   }
 
   const handleKeyDown = e => { if (e.key === 'Enter') go() }
@@ -88,9 +105,44 @@ export default function LoginPage() {
       {/* ── Right form panel ── */}
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:`linear-gradient(180deg,${T.bg} 0%,${T.bg1} 100%)`, padding:40 }}>
         <div style={{ width:'100%', maxWidth:420, animation:'fadeUp .5s .1s ease both', opacity:0 }}>
-          <div style={{ marginBottom:28 }}>
+          <div style={{ marginBottom:24 }}>
             <div style={{ fontFamily:T.exo, fontWeight:700, fontSize:28, color:T.white, marginBottom:6 }}>Bienvenido</div>
             <div style={{ fontFamily:T.dm, fontSize:14, color:T.muted }}>Ingresá con tu cuenta institucional Elitrax PRO+</div>
+          </div>
+
+          {/* Demo accounts */}
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontFamily:T.dm, fontSize:11, color:T.muted, letterSpacing:.8, marginBottom:8 }}>ACCESO RÁPIDO — CUENTAS DEMO</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+              {DEMO_ACCOUNTS.map(a => (
+                <button
+                  key={a.sport}
+                  onClick={() => fillDemo(a)}
+                  style={{
+                    padding:'10px 14px', borderRadius:10, cursor:'pointer',
+                    background: email === a.email ? a.color + '18' : 'transparent',
+                    border: `1.5px solid ${email === a.email ? a.color : T.border}`,
+                    display:'flex', alignItems:'center', gap:8,
+                    transition:'all .15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = a.color }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = email === a.email ? a.color : T.border }}
+                >
+                  <span style={{ fontSize:18 }}>{a.icon}</span>
+                  <span style={{ fontFamily:T.dm, fontSize:12, fontWeight:600, color: email === a.email ? a.color : T.muted }}>{a.label}</span>
+                </button>
+              ))}
+            </div>
+            <div style={{ fontFamily:T.dm, fontSize:10, color:T.faint, marginTop:6 }}>
+              Contraseña para todas: <span style={{ color:T.cian, fontFamily:T.mono }}>demo1234</span>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
+            <div style={{ flex:1, height:1, background:T.border }} />
+            <span style={{ fontFamily:T.dm, fontSize:11, color:T.faint }}>o ingresá manualmente</span>
+            <div style={{ flex:1, height:1, background:T.border }} />
           </div>
 
           {/* Email */}
@@ -147,7 +199,7 @@ export default function LoginPage() {
               borderRadius:12, fontFamily:T.exo, fontWeight:700, fontSize:15,
               letterSpacing:1.5, color: loading ? T.naranja : T.white,
               boxShadow: loading ? 'none' : '0 6px 20px rgba(243,108,58,.35)',
-              transition:'all .25s',
+              transition:'all .25s', cursor: loading ? 'not-allowed' : 'pointer',
             }}
           >
             {loading ? 'INGRESANDO...' : 'INGRESAR'}

@@ -1,22 +1,23 @@
 import { useState } from 'react'
 import { T } from './tokens'
+import { UserProvider, useUser } from './context/UserContext'
+import { ToastProvider } from './context/ToastContext'
 import Sidebar   from './components/Sidebar'
 import Topbar    from './components/Topbar'
+import ErrorBoundary from './components/ErrorBoundary'
 import LoginPage from './views/LoginPage'
 import DashboardView    from './views/DashboardView'
 import OptimizacionView from './views/OptimizacionView'
 import VitrinaView      from './views/VitrinaView'
 import PlaceholderView  from './views/PlaceholderView'
 
-export default function App() {
-  const [page,    setPage]    = useState('login')
-  const [role,    setRole]    = useState('dt')
+function AppShell() {
+  const { user, logout, isAuth } = useUser()
   const [section, setSection] = useState('dashboard')
 
-  const login   = r => { setRole(r); setPage('app') }
-  const signout = () => { setPage('login'); setSection('dashboard') }
+  const signout = () => { logout(); setSection('dashboard') }
 
-  if (page === 'login') return <LoginPage onLogin={login} />
+  if (!isAuth) return <LoginPage />
 
   const views = {
     dashboard:    <DashboardView />,
@@ -35,13 +36,25 @@ export default function App() {
 
   return (
     <div style={{ width:'100vw', height:'100vh', display:'flex', overflow:'hidden', background:T.bg }}>
-      <Sidebar active={section} onChange={setSection} role={role} onSignOut={signout} />
+      <Sidebar active={section} onChange={setSection} onSignOut={signout} />
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
         <Topbar section={section} />
         <div style={{ flex:1, overflow:'hidden', animation:'fadeIn .3s ease' }}>
-          {views[section] || views.dashboard}
+          <ErrorBoundary key={section} fallbackTitle="Error al cargar la vista" onRetry={() => setSection(prev => prev)}>
+            {views[section] || views.dashboard}
+          </ErrorBoundary>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <UserProvider>
+      <ToastProvider>
+        <AppShell />
+      </ToastProvider>
+    </UserProvider>
   )
 }

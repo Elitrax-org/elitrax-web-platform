@@ -1,19 +1,51 @@
 import { useState } from 'react'
 import { T, glass } from '../tokens'
 import Logo from '../components/Logo'
+import { useUser } from '../context/UserContext'
+import { useToast } from '../context/ToastContext'
 
-export default function LoginPage({ onLogin }) {
+const ROLES = [
+  { id:'dt',       label:'Director Técnico'    },
+  { id:'pf',       label:'Preparador Físico'   },
+  { id:'scout',    label:'Scout'               },
+  { id:'analista', label:'Analista'            },
+]
+
+export default function LoginPage() {
+  const { login } = useUser()
+  const toast     = useToast()
   const [email,   setEmail]   = useState('dt@atleticobel.com.ar')
-  const [pass,    setPass]    = useState('••••••••')
+  const [pass,    setPass]    = useState('demo1234')
+  const [role,    setRole]    = useState('dt')
   const [loading, setLoading] = useState(false)
   const [err,     setErr]     = useState('')
 
+  const validate = () => {
+    if (!email.trim())                   return 'Ingresá tu correo'
+    if (!email.includes('@'))             return 'Correo inválido'
+    if (!pass)                            return 'Ingresá tu contraseña'
+    if (pass.length < 4)                  return 'Mínimo 4 caracteres'
+    return null
+  }
+
   const go = () => {
-    if (!email.trim()) { setErr('Ingresá tu correo'); return }
+    const v = validate()
+    if (v) { setErr(v); return }
     setErr('')
     setLoading(true)
-    setTimeout(() => { setLoading(false); onLogin('dt') }, 1400)
+    setTimeout(() => {
+      if (Math.random() < 0.1) {
+        setLoading(false)
+        setErr('Error de conexión. Intentá de nuevo.')
+        toast.error('No se pudo conectar con el servidor.')
+        return
+      }
+      login(role)
+      toast.success('Inicio de sesión exitoso. Bienvenido.')
+    }, 1400)
   }
+
+  const handleKeyDown = e => { if (e.key === 'Enter') go() }
 
   return (
     <div style={{ width:'100vw', height:'100vh', display:'flex', overflow:'hidden', background:T.bg }}>
@@ -24,12 +56,10 @@ export default function LoginPage({ onLogin }) {
         background: 'linear-gradient(160deg,#0D1E38 0%,#060E1A 60%,#0A1628 100%)',
         display:'flex', flexDirection:'column', justifyContent:'space-between', padding:'48px 52px',
       }}>
-        {/* grid overlay */}
         <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', opacity:.06 }} viewBox="0 0 440 900" preserveAspectRatio="xMidYMid slice">
           {Array.from({length:12}).map((_,i) => <line key={'h'+i} x1="0" y1={i*80} x2="440" y2={i*80} stroke={T.cian} strokeWidth=".5"/>)}
           {Array.from({length:7}).map((_,i)  => <line key={'v'+i} x1={i*80} y1="0" x2={i*80} y2="900" stroke={T.cian} strokeWidth=".5"/>)}
         </svg>
-        {/* glow */}
         <div style={{ position:'absolute', top:'35%', left:'30%', width:400, height:400, borderRadius:'50%', background:'radial-gradient(circle,rgba(243,108,58,.14) 0%,transparent 70%)', transform:'translate(-50%,-50%)', pointerEvents:'none' }} />
 
         <Logo size="lg" />
@@ -66,15 +96,38 @@ export default function LoginPage({ onLogin }) {
       {/* ── Right form panel ── */}
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:`linear-gradient(180deg,${T.bg} 0%,${T.bg1} 100%)`, padding:40 }}>
         <div style={{ width:'100%', maxWidth:420, animation:'fadeUp .5s .1s ease both', opacity:0 }}>
-          <div style={{ marginBottom:32 }}>
+          <div style={{ marginBottom:28 }}>
             <div style={{ fontFamily:T.exo, fontWeight:700, fontSize:28, color:T.white, marginBottom:6 }}>Bienvenido</div>
             <div style={{ fontFamily:T.dm, fontSize:14, color:T.muted }}>Ingresá con tu cuenta institucional Elitrax PRO+</div>
+          </div>
+
+          {/* Role selector */}
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontFamily:T.dm, fontSize:11, color:T.muted, letterSpacing:.8, marginBottom:8 }}>ROL</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+              {ROLES.map(r => (
+                <button
+                  key={r.id}
+                  onClick={() => setRole(r.id)}
+                  style={{
+                    padding:'10px', borderRadius:10,
+                    background: role === r.id ? T.cianDim : 'transparent',
+                    border: `1.5px solid ${role === r.id ? T.cian : T.border}`,
+                    fontFamily:T.dm, fontSize:12, fontWeight: role === r.id ? 600 : 400,
+                    color: role === r.id ? T.cian : T.muted,
+                    transition: 'all .15s',
+                  }}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Email */}
           <div style={{ marginBottom:14 }}>
             <div style={{ fontFamily:T.dm, fontSize:11, color:T.muted, letterSpacing:.8, marginBottom:8 }}>CORREO INSTITUCIONAL</div>
-            <div style={{ ...glass(10), padding:'13px 16px', display:'flex', alignItems:'center', gap:10, border:`1px solid ${T.border}` }}>
+            <div style={{ ...glass(10), padding:'13px 16px', display:'flex', alignItems:'center', gap:10, border:`1px solid ${err && !email.trim() ? T.red : T.border}` }}>
               <svg width="16" height="13" viewBox="0 0 16 13" fill="none">
                 <rect x="1" y="1" width="14" height="11" rx="2" stroke={T.muted} strokeWidth="1.3"/>
                 <path d="M1 4l7 4.5L15 4" stroke={T.muted} strokeWidth="1.3"/>
@@ -82,6 +135,8 @@ export default function LoginPage({ onLogin }) {
               <input
                 value={email}
                 onInput={e => setEmail(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="correo@club.com"
                 style={{ background:'none', border:'none', outline:'none', flex:1, fontFamily:T.dm, fontSize:14, color:T.white }}
               />
             </div>
@@ -90,7 +145,7 @@ export default function LoginPage({ onLogin }) {
           {/* Password */}
           <div style={{ marginBottom:8 }}>
             <div style={{ fontFamily:T.dm, fontSize:11, color:T.muted, letterSpacing:.8, marginBottom:8 }}>CONTRASEÑA</div>
-            <div style={{ ...glass(10), padding:'13px 16px', display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ ...glass(10), padding:'13px 16px', display:'flex', alignItems:'center', gap:10, border:`1px solid ${err && !pass ? T.red : T.border}` }}>
               <svg width="14" height="16" viewBox="0 0 14 16" fill="none">
                 <rect x="1" y="7" width="12" height="8" rx="2" stroke={T.muted} strokeWidth="1.3"/>
                 <path d="M4 7V5a3 3 0 016 0v2" stroke={T.muted} strokeWidth="1.3"/>
@@ -99,7 +154,9 @@ export default function LoginPage({ onLogin }) {
               <input
                 value={pass}
                 onInput={e => setPass(e.target.value)}
+                onKeyDown={handleKeyDown}
                 type="password"
+                placeholder="Contraseña"
                 style={{ background:'none', border:'none', outline:'none', flex:1, fontFamily:T.dm, fontSize:14, color:T.white }}
               />
             </div>

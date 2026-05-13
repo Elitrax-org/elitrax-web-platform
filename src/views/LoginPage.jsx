@@ -4,19 +4,11 @@ import Logo from '../components/Logo'
 import { useUser } from '../context/UserContext'
 import { useToast } from '../context/ToastContext'
 
-const ROLES = [
-  { id:'dt',       label:'Director Técnico'    },
-  { id:'pf',       label:'Preparador Físico'   },
-  { id:'scout',    label:'Scout'               },
-  { id:'analista', label:'Analista'            },
-]
-
 export default function LoginPage() {
   const { login } = useUser()
   const toast     = useToast()
   const [email,   setEmail]   = useState('dt@atleticobel.com.ar')
   const [pass,    setPass]    = useState('demo1234')
-  const [role,    setRole]    = useState('dt')
   const [loading, setLoading] = useState(false)
   const [err,     setErr]     = useState('')
 
@@ -40,7 +32,7 @@ export default function LoginPage() {
         toast.error('No se pudo conectar con el servidor.')
         return
       }
-      login(role)
+      login()
       toast.success('Inicio de sesión exitoso. Bienvenido.')
     }, 1400)
   }
@@ -99,29 +91,6 @@ export default function LoginPage() {
           <div style={{ marginBottom:28 }}>
             <div style={{ fontFamily:T.exo, fontWeight:700, fontSize:28, color:T.white, marginBottom:6 }}>Bienvenido</div>
             <div style={{ fontFamily:T.dm, fontSize:14, color:T.muted }}>Ingresá con tu cuenta institucional Elitrax PRO+</div>
-          </div>
-
-          {/* Role selector */}
-          <div style={{ marginBottom:16 }}>
-            <div style={{ fontFamily:T.dm, fontSize:11, color:T.muted, letterSpacing:.8, marginBottom:8 }}>ROL</div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-              {ROLES.map(r => (
-                <button
-                  key={r.id}
-                  onClick={() => setRole(r.id)}
-                  style={{
-                    padding:'10px', borderRadius:10,
-                    background: role === r.id ? T.cianDim : 'transparent',
-                    border: `1.5px solid ${role === r.id ? T.cian : T.border}`,
-                    fontFamily:T.dm, fontSize:12, fontWeight: role === r.id ? 600 : 400,
-                    color: role === r.id ? T.cian : T.muted,
-                    transition: 'all .15s',
-                  }}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Email */}

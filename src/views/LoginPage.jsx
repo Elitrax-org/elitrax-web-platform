@@ -3,20 +3,21 @@ import { T, glass } from '../tokens'
 import Logo from '../components/Logo'
 import { useUser } from '../context/UserContext'
 import { useToast } from '../context/ToastContext'
+import { USERS } from '../users'
 
 export default function LoginPage() {
   const { login } = useUser()
   const toast     = useToast()
-  const [email,   setEmail]   = useState('dt@atleticobel.com.ar')
-  const [pass,    setPass]    = useState('demo1234')
+  const [email,   setEmail]   = useState('')
+  const [pass,    setPass]    = useState('')
   const [loading, setLoading] = useState(false)
   const [err,     setErr]     = useState('')
 
   const validate = () => {
-    if (!email.trim())                   return 'Ingresá tu correo'
-    if (!email.includes('@'))             return 'Correo inválido'
-    if (!pass)                            return 'Ingresá tu contraseña'
-    if (pass.length < 4)                  return 'Mínimo 4 caracteres'
+    if (!email.trim())        return 'Ingresá tu correo'
+    if (!email.includes('@')) return 'Correo inválido'
+    if (!pass)                return 'Ingresá tu contraseña'
+    if (pass.length < 4)      return 'Mínimo 4 caracteres'
     return null
   }
 
@@ -26,15 +27,15 @@ export default function LoginPage() {
     setErr('')
     setLoading(true)
     setTimeout(() => {
-      if (Math.random() < 0.1) {
+      const found = USERS.find(u => u.email === email.trim() && u.password === pass)
+      if (!found) {
         setLoading(false)
-        setErr('Error de conexión. Intentá de nuevo.')
-        toast.error('No se pudo conectar con el servidor.')
+        setErr('Credenciales incorrectas.')
         return
       }
-      login()
-      toast.success('Inicio de sesión exitoso. Bienvenido.')
-    }, 1400)
+      login(found)
+      toast.success(`Bienvenido, ${found.name}.`)
+    }, 900)
   }
 
   const handleKeyDown = e => { if (e.key === 'Enter') go() }

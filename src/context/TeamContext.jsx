@@ -1,7 +1,4 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
-import { PLAYERS } from '../data'
-
-const STORAGE_KEY = 'elitrax_team'
 
 const TeamContext = createContext()
 
@@ -9,20 +6,27 @@ export function useTeam() {
   return useContext(TeamContext)
 }
 
-function loadInitial() {
+const storageKey = (email) => `elitrax_team_${email}`
+
+function loadForUser(email) {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY)
+    const saved = localStorage.getItem(storageKey(email))
     if (saved) return JSON.parse(saved)
   } catch {}
-  return { sport: null, players: [...PLAYERS] }
+  return { sport: null, players: [] }
 }
 
-export function TeamProvider({ children }) {
-  const [data, setData] = useState(loadInitial)
+export function TeamProvider({ children, userEmail }) {
+  const [data, setData] = useState(() => loadForUser(userEmail))
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) } catch {}
-  }, [data])
+    setData(loadForUser(userEmail))
+  }, [userEmail])
+
+  useEffect(() => {
+    if (!userEmail) return
+    try { localStorage.setItem(storageKey(userEmail), JSON.stringify(data)) } catch {}
+  }, [data, userEmail])
 
   const setSport = useCallback(sport => {
     setData(prev => ({ ...prev, sport }))

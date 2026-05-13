@@ -9,8 +9,8 @@ export function useUser() {
 export function UserProvider({ children }) {
   const [user, setUser] = useState(null)
 
-  const login = useCallback(() => {
-    setUser({ name: 'Usuario', initials: 'U' })
+  const login = useCallback((userData) => {
+    setUser(userData)
   }, [])
 
   const logout = useCallback(() => {

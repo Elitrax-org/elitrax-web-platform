@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { T } from './tokens'
 import { UserProvider, useUser } from './context/UserContext'
 import { ToastProvider } from './context/ToastContext'
+import { TeamProvider } from './context/TeamContext'
 import Sidebar   from './components/Sidebar'
 import Topbar    from './components/Topbar'
 import ErrorBoundary from './components/ErrorBoundary'
 import LoginPage from './views/LoginPage'
 import DashboardView    from './views/DashboardView'
+import MiEquipoView     from './views/MiEquipoView'
 import OptimizacionView from './views/OptimizacionView'
 import VitrinaView      from './views/VitrinaView'
 import PlaceholderView  from './views/PlaceholderView'
@@ -19,9 +21,20 @@ function AppShell() {
 
   if (!isAuth) return <LoginPage />
 
+  // TeamProvider lives here so it re-mounts with the correct userEmail on login
+  return (
+    <TeamProvider userEmail={user.email}>
+      <AppShellInner section={section} setSection={setSection} signout={signout} />
+    </TeamProvider>
+  )
+}
+
+function AppShellInner({ section, setSection, signout }) {
+
+  const { logout } = useUser()
   const views = {
     dashboard:    <DashboardView />,
-    equipo:       <PlaceholderView title="Mi Equipo"        icon="👥" sub="Gestión completa del plantel"                     />,
+    equipo:       <MiEquipoView />,
     sesiones:     <PlaceholderView title="Sesiones"         icon="📋" sub="Historial y análisis de sesiones"                />,
     jugadores:    <PlaceholderView title="Jugadores"        icon="👤" sub="Perfiles individuales y evolución"               />,
     telemetria:   <PlaceholderView title="Telemetría"       icon="📡" sub="Datos en tiempo real desde dispositivos GPS/IMU" />,
@@ -36,7 +49,7 @@ function AppShell() {
 
   return (
     <div style={{ width:'100vw', height:'100vh', display:'flex', overflow:'hidden', background:T.bg }}>
-      <Sidebar active={section} onChange={setSection} onSignOut={signout} />
+      <Sidebar active={section} onChange={setSection} onSignOut={() => { logout(); setSection('dashboard') }} />
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
         <Topbar section={section} />
         <div style={{ flex:1, overflow:'hidden', animation:'fadeIn .3s ease' }}>

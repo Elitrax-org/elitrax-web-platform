@@ -25,7 +25,7 @@ export default function Sidebar({ active, onChange, onSignOut }) {
       <div style={{ padding: '14px 16px', borderBottom: `1px solid ${T.border}`, margin: '0 0 8px' }}>
         <div style={{ ...glass(10), padding: '10px 12px' }}>
           <div style={{ fontFamily:T.dm, fontWeight:600, fontSize:12, color:T.white, lineHeight:1.3 }}>
-            Club Atlético Belgrano — Sub 20
+            {user?.club || 'Mi Club'}
           </div>
           <div style={{ fontFamily:T.dm, fontSize:11, color:T.muted, marginTop:3 }}>
             {currentSport

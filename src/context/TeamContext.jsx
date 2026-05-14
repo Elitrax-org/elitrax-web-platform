@@ -6,61 +6,59 @@ export function useTeam() {
   return useContext(TeamContext)
 }
 
-const storageKey = (email) => `elitrax_team_${email}`
+const squadsKey = (email) => `elitrax_squads_${email}`
 
-function loadForUser(email) {
+function loadSquads(email) {
   try {
-    const saved = localStorage.getItem(storageKey(email))
+    const saved = localStorage.getItem(squadsKey(email))
     if (saved) return JSON.parse(saved)
   } catch {}
-  return { sport: null, players: [] }
+  return []
 }
 
 export function TeamProvider({ children, userEmail }) {
-  const [data, setData] = useState(() => loadForUser(userEmail))
+  const [squads, setSquads] = useState(() => loadSquads(userEmail))
 
   useEffect(() => {
-    setData(loadForUser(userEmail))
+    setSquads(loadSquads(userEmail))
   }, [userEmail])
 
   useEffect(() => {
     if (!userEmail) return
-    try { localStorage.setItem(storageKey(userEmail), JSON.stringify(data)) } catch {}
-  }, [data, userEmail])
+    try { localStorage.setItem(squadsKey(userEmail), JSON.stringify(squads)) } catch {}
+  }, [squads, userEmail])
 
-  const setSport = useCallback(sport => {
-    setData(prev => ({ ...prev, sport }))
+  const addSquad = useCallback(squad => {
+    setSquads(prev => [{ ...squad, id: Date.now(), createdAt: new Date().toISOString() }, ...prev])
   }, [])
 
-  const addPlayer = useCallback(player => {
-    setData(prev => ({ ...prev, players: [...prev.players, { ...player, id: Date.now() }] }))
+  const updateSquad = useCallback((id, changes) => {
+    setSquads(prev => prev.map(s => s.id === id ? { ...s, ...changes } : s))
   }, [])
 
-  const updatePlayer = useCallback((id, changes) => {
-    setData(prev => ({
-      ...prev,
-      players: prev.players.map(p => p.id === id ? { ...p, ...changes } : p),
+  const deleteSquad = useCallback(id => {
+    setSquads(prev => prev.filter(s => s.id !== id))
+  }, [])
+
+  const addSquadEvent = useCallback((squadId, event) => {
+    setSquads(prev => prev.map(s => {
+      if (s.id !== squadId) return s
+      const newEvent = { ...event, id: Date.now() + Math.random() }
+      return { ...s, events: [...(s.events || []), newEvent] }
     }))
   }, [])
 
-  const deletePlayer = useCallback(id => {
-    setData(prev => ({ ...prev, players: prev.players.filter(p => p.id !== id) }))
-  }, [])
-
-  const reorderPlayers = useCallback((fromIdx, toIdx) => {
-    setData(prev => {
-      const list = [...prev.players]
-      const [moved] = list.splice(fromIdx, 1)
-      list.splice(toIdx, 0, moved)
-      return { ...prev, players: list }
-    })
+  const removeSquadEvent = useCallback((squadId, eventId) => {
+    setSquads(prev => prev.map(s => {
+      if (s.id !== squadId) return s
+      return { ...s, events: (s.events || []).filter(e => e.id !== eventId) }
+    }))
   }, [])
 
   return (
     <TeamContext.Provider value={{
-      sport: data.sport,
-      players: data.players,
-      setSport, addPlayer, updatePlayer, deletePlayer, reorderPlayers,
+      squads,
+      addSquad, updateSquad, deleteSquad, addSquadEvent, removeSquadEvent,
     }}>
       {children}
     </TeamContext.Provider>

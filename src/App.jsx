@@ -3,12 +3,14 @@ import { T } from './tokens'
 import { UserProvider, useUser } from './context/UserContext'
 import { ToastProvider } from './context/ToastContext'
 import { TeamProvider } from './context/TeamContext'
+import { PlayerProvider } from './context/PlayerContext'
 import Sidebar   from './components/Sidebar'
 import Topbar    from './components/Topbar'
 import ErrorBoundary from './components/ErrorBoundary'
 import LoginPage from './views/LoginPage'
 import DashboardView    from './views/DashboardView'
 import MiEquipoView     from './views/MiEquipoView'
+import JugadoresView    from './views/JugadoresView'
 import OptimizacionView from './views/OptimizacionView'
 import VitrinaView      from './views/VitrinaView'
 import PlaceholderView  from './views/PlaceholderView'
@@ -23,9 +25,11 @@ function AppShell() {
 
   // TeamProvider lives here so it re-mounts with the correct userEmail on login
   return (
-    <TeamProvider userEmail={user.email}>
-      <AppShellInner section={section} setSection={setSection} signout={signout} />
-    </TeamProvider>
+    <PlayerProvider userEmail={user.email}>
+      <TeamProvider userEmail={user.email}>
+        <AppShellInner section={section} setSection={setSection} signout={signout} />
+      </TeamProvider>
+    </PlayerProvider>
   )
 }
 
@@ -36,7 +40,7 @@ function AppShellInner({ section, setSection, signout }) {
     dashboard:    <DashboardView />,
     equipo:       <MiEquipoView />,
     sesiones:     <PlaceholderView title="Sesiones"         icon="📋" sub="Historial y análisis de sesiones"                />,
-    jugadores:    <PlaceholderView title="Jugadores"        icon="👤" sub="Perfiles individuales y evolución"               />,
+    jugadores:    <JugadoresView />,
     telemetria:   <PlaceholderView title="Telemetría"       icon="📡" sub="Datos en tiempo real desde dispositivos GPS/IMU" />,
     partido:      <PlaceholderView title="Modo Partido"     icon="🏟" sub="Seguimiento en vivo durante la competencia"      />,
     heatmaps:     <PlaceholderView title="Mapas de calor"   icon="🗺" sub="Zonas de juego e intensidad"                     />,

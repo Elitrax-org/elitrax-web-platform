@@ -100,6 +100,50 @@ export const teams = {
   },
 }
 
+// ─── Sessions ─────────────────────────────────────────────────────────────────
+
+export const sessions = {
+  /**
+   * GET /sessions → { sessions: TrainingSession[], nextCursor }
+   * @param {{ limit?: number, cursor?: string }} params
+   */
+  list: (params = {}) => {
+    const qs = new URLSearchParams()
+    if (params.limit)  qs.set('limit',  params.limit)
+    if (params.cursor) qs.set('cursor', params.cursor)
+    const q = qs.toString()
+    return request(`/sessions${q ? `?${q}` : ''}`)
+  },
+
+  /**
+   * POST /sessions → TrainingSession
+   * @param {{ teamId?: string, kind: string, scheduledFor: string, durationSeconds?: number, notes?: string, playerIds?: string[] }} data
+   */
+  create: (data) =>
+    request('/sessions', { method: 'POST', body: JSON.stringify(data) }),
+
+  events: {
+    /** GET /sessions/:id/events → { events: MatchEvent[], nextCursor } */
+    list: (sessionId, params = {}) => {
+      const qs = new URLSearchParams()
+      if (params.limit)  qs.set('limit',  params.limit)
+      if (params.cursor) qs.set('cursor', params.cursor)
+      const q = qs.toString()
+      return request(`/sessions/${sessionId}/events${q ? `?${q}` : ''}`)
+    },
+
+    /**
+     * POST /sessions/:id/events → MatchEvent
+     * @param {{ kind: string, matchMinute?: number, playerId?: string, payload?: object }} data
+     */
+    create: (sessionId, data) =>
+      request(`/sessions/${sessionId}/events`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+}
+
 // ─── Players ──────────────────────────────────────────────────────────────────
 
 export const players = {

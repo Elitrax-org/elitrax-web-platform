@@ -10,8 +10,8 @@
 |------|-------------|--------|
 | Fase 1 | Autenticación real | ✅ Completada |
 | Fase 2 | Jugadores y equipos | ✅ Completada |
-| Fase 3 | Sesiones y eventos de partido | ⏳ Pendiente |
-| Fase 4 | Métricas derivadas (carga, estado, km) | ⏳ Pendiente |
+| Fase 3 | Sesiones y eventos de partido | ✅ Completada |
+| Fase 4 | Métricas derivadas (carga, estado, km) | ✅ Completada (parcial) |
 | Fase 5 | Funcionalidad faltante en backend | ⏳ Pendiente |
 | Fase 6 | IA y Vitrina | ⏳ Pendiente |
 
@@ -264,32 +264,116 @@ Relación usuario ↔ cuenta con rol asignado.
 
 ---
 
-# ⏳ FASE 3 — Sesiones y Eventos de Partido
+# ✅ FASE 3 — Sesiones y Eventos de Partido
 
-**Estado:** Pendiente
+**Fecha:** Mayo 2026
+**Branch:** `feature/dashboard-interact-v1`
 
-**Qué se hará:**
-- Conectar `MiEquipoView` y `NewSessionModal` a `/api/v1/sessions`
-- Registrar eventos de partido (goles, cambios, tarjetas) en `/api/v1/sessions/[id]/events`
+## Archivos modificados
+
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/lib/api.js` | Extendido | Endpoints de sessions y events |
+| `src/context/SessionContext.jsx` | Creado | Sesiones y eventos desde API real |
+| `src/views/MiEquipoView.jsx` | Modificado | Usa SessionContext en lugar de TeamContext |
+| `src/App.jsx` | Modificado | SessionProvider agregado al árbol de providers |
+
+## Qué se implementó
+
+### SessionContext
+- Al montar: `GET /sessions` → carga todas las sesiones de la cuenta
+- `addSquad(form)` → `POST /sessions` con `{ teamId, kind, scheduledFor, notes, playerIds }`
+- `addSquadEvent(sessionId, event)` → `POST /sessions/:id/events` con `{ kind, matchMinute, playerId, payload }`
+- `updateSquad` / `deleteSquad` / `removeSquadEvent` → solo estado local (sin PATCH/DELETE en backend)
+- Campos sin soporte en backend → guardados en `localStorage` con clave `elitrax_session_local_${teamId}`
+
+### Mapeo de tipos de sesión
+| Frontend | Backend |
+|----------|---------|
+| `partido` | `match` |
+| `entrenamiento` | `team_training` |
+
+### Mapeo de tipos de evento
+| Frontend | Backend |
+|----------|---------|
+| `gol` | `goal` |
+| `asistencia` | `assist` |
+| `amarilla` | `yellow_card` |
+| `roja` | `red_card` |
+| `cambio` | `substitution` |
+| `lesion` | `injury` |
+| `penal` | `shot` |
+| `otros` | `note` |
+
+### MiEquipoView — cambio de contexto
+La vista dejó de usar `useTeam()` para squads y ahora usa `useSession()`.
+
+## Endpoints consumidos
+
+| Método | Ruta | Propósito |
+|--------|------|-----------|
+| GET | `/api/v1/sessions` | Cargar sesiones al montar |
+| POST | `/api/v1/sessions` | Crear nuevo partido o entrenamiento |
+| POST | `/api/v1/sessions/:id/events` | Registrar evento de partido |
+
+## Brechas conocidas (pendientes de Fases siguientes)
+| Brecha | Fase |
+|--------|------|
+| `rival`, `venue`, `formation`, `score` no están en el schema de backend | Fase 5 |
+| Roles de jugadores (titular/suplente/banco) no están en `session_players` | Fase 5 |
+| No hay `DELETE /sessions/:id` — deleteSquad es solo local | Fase 5 |
+| No hay `DELETE /sessions/:id/events/:id` — removeSquadEvent es solo local | Fase 5 |
+| Eventos con `relatedPlayerId` (cambios) guardados solo en localStorage payload | Fase 5 |
 
 ---
 
-# ⏳ FASE 4 — Métricas Derivadas
+# ✅ FASE 4 — Métricas Derivadas
 
-**Estado:** Pendiente
+**Fecha:** Mayo 2026
+**Branch:** `feature/dashboard-interact-v1`
 
-**Qué se hará:**
-- Calcular `carga`, `km`, `sprints`, `vel`, `estado` desde `session_player_metrics` e `injuries`
-- Crear lógica de agregación en el frontend o solicitar endpoint de resumen al backend
+## Archivos modificados
 
-**Brechas identificadas (campos que el frontend usa pero el backend no tiene directamente):**
-| Campo frontend | Origen real en backend |
-|----------------|------------------------|
-| `player.km` | `session_player_metrics.total_distance_meters` (último período) |
-| `player.vel` | `session_player_metrics.max_speed_mps` × 3.6 (conversión a km/h) |
-| `player.sprints` | No existe — pendiente de definición |
-| `player.carga` | No existe — pendiente de definición |
-| `player.estado` | Derivado de `injuries.status` activo |
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/context/PlayerContext.jsx` | Modificado | Fetch injuries en paralelo al cargar roster + loadPlayerMeasurements |
+| `src/views/JugadoresView.jsx` | Modificado | Fix squads → useSession(), cargar mediciones al abrir perfil |
+
+## Qué se implementó
+
+### `estado` — derivado desde backend injuries
+Al cargar el roster, `PlayerContext` hace `GET /players/:id/injuries` para todos los jugadores en paralelo (`Promise.allSettled`). El estado se deriva así:
+
+| Backend `injury.status` | Frontend `estado` |
+|-------------------------|-------------------|
+| `injured` (al menos uno) | `lesion` |
+| `recovering` (al menos uno) | `alerta` |
+| Todos `recovered` o sin lesiones | `ok` |
+
+### Mediciones — carga lazy al abrir perfil
+`loadPlayerMeasurements(playerId)` hace `GET /players/:id/measurements` cuando el usuario abre el perfil de un jugador en `JugadoresView`. Actualiza:
+- `player.altura` → `heightCentimeters` de la medición más reciente
+- `player.peso` → `weightKilograms` de la medición más reciente
+- `player.anthropometrics` → historial completo de mediciones del backend
+
+### Fix aplicado: JugadoresView usaba useTeam() para squads
+`JugadoresView` usaba `useTeam()` para leer `squads`. Corregido a `useSession()`.
+
+## Endpoints consumidos
+
+| Método | Ruta | Propósito |
+|--------|------|-----------|
+| GET | `/api/v1/players/:id/injuries` | Derivar estado (en paralelo al cargar roster) |
+| GET | `/api/v1/players/:id/measurements` | Cargar mediciones al abrir perfil |
+
+## Brechas que quedan pendientes
+
+| Campo frontend | Causa | Fase |
+|----------------|-------|------|
+| `player.km` | No hay endpoint público para `session_player_metrics` | Fase 5 |
+| `player.vel` | Mismo origen — `max_speed_mps × 3.6` sin endpoint | Fase 5 |
+| `player.sprints` | No existe en el backend | Fase 5 |
+| `player.carga` | No existe en el backend | Fase 5 |
 
 ---
 

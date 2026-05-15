@@ -4,6 +4,7 @@ import { UserProvider, useUser } from './context/UserContext'
 import { ToastProvider } from './context/ToastContext'
 import { TeamProvider } from './context/TeamContext'
 import { PlayerProvider } from './context/PlayerContext'
+import { SessionProvider } from './context/SessionContext'
 import Sidebar   from './components/Sidebar'
 import Topbar    from './components/Topbar'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -28,11 +29,13 @@ function AppShell() {
 
   if (!isAuth) return <LoginPage />
 
-  // TeamProvider must be outer so PlayerProvider can call useTeam()
+  // TeamProvider must be outer so PlayerProvider and SessionProvider can call useTeam()
   return (
     <TeamProvider>
       <PlayerProvider>
-        <AppShellInner section={section} setSection={setSection} />
+        <SessionProvider>
+          <AppShellInner section={section} setSection={setSection} />
+        </SessionProvider>
       </PlayerProvider>
     </TeamProvider>
   )

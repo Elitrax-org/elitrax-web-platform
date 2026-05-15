@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { T, glass } from '../tokens'
 import { TEAM_EVENT_TYPES, initials } from '../data'
 import { usePlayer } from '../context/PlayerContext'
-import { useTeam } from '../context/TeamContext'
+import { useSession } from '../context/SessionContext'
 import { useToast } from '../context/ToastContext'
 import Badge from '../components/Badge'
 import MiniBar from '../components/MiniBar'
@@ -42,8 +42,8 @@ const PROFILE_TABS = [
 ]
 
 export default function JugadoresView() {
-  const { players, addPlayer, updatePlayer, deletePlayer, addAnthropometric, addInjury, closeInjury, addFile, deleteFile, addClub, removeClub } = usePlayer()
-  const { squads } = useTeam()
+  const { players, addPlayer, updatePlayer, deletePlayer, addAnthropometric, addInjury, closeInjury, addFile, deleteFile, addClub, removeClub, loadPlayerMeasurements } = usePlayer()
+  const { squads } = useSession()
   const toast = useToast()
 
   const [loading,      setLoading]    = useState(true)
@@ -64,6 +64,13 @@ export default function JugadoresView() {
   const [anthropoForm, setAnthropoForm] = useState({ altura:'', peso:'', grasa:'', masaMuscular:'', note:'' })
 
   useEffect(() => { const t = setTimeout(() => setLoading(false), 300); return () => clearTimeout(t) }, [])
+
+  // Fase 4: carga mediciones reales cuando se abre el perfil de un jugador
+  useEffect(() => {
+    if (selected?.id && loadPlayerMeasurements) {
+      loadPlayerMeasurements(selected.id).catch(() => {})
+    }
+  }, [selected?.id])
 
   const allPositions = [...new Set(players.map(p => p.pos))]
 

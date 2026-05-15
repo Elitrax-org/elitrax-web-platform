@@ -1,0 +1,272 @@
+# Plan de Implementación — Elitrax Web Platform
+**Objetivo:** Conectar el frontend React+Vite al backend Web Platform API (Next.js 16 + Supabase)
+**Regla principal:** No modificar el backend. Solo adaptar el frontend.
+
+---
+
+## Estado general de fases
+
+| Fase | Descripción | Estado |
+|------|-------------|--------|
+| Fase 1 | Autenticación real | ✅ Completada |
+| Fase 2 | Jugadores y equipos | ⏳ Pendiente |
+| Fase 3 | Sesiones y eventos de partido | ⏳ Pendiente |
+| Fase 4 | Métricas derivadas (carga, estado, km) | ⏳ Pendiente |
+| Fase 5 | Funcionalidad faltante en backend | ⏳ Pendiente |
+| Fase 6 | IA y Vitrina | ⏳ Pendiente |
+
+---
+
+---
+
+# ✅ FASE 1 — Autenticación Real
+
+**Fecha:** Mayo 2026
+**Branch:** `feature/dashboard-interact-v1`
+**Commits:** `949ae58`, `edce6dc`
+
+## Problema que resolvía
+
+El frontend tenía autenticación 100% simulada:
+- Credenciales hardcodeadas en `src/users.js` (4 usuarios ficticios)
+- El login no llamaba a ningún servidor real
+- La sesión vivía solo en memoria React → se perdía al recargar la página
+- Cualquier email/contraseña inventada podía entrar si coincidía con el array local
+
+## Archivos modificados
+
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `vite.config.js` | Modificado | Proxy `/api` → `http://localhost:3000` |
+| `src/lib/api.js` | Creado | Cliente HTTP centralizado |
+| `src/context/UserContext.jsx` | Modificado | Auth real + restauración de sesión |
+| `src/views/LoginPage.jsx` | Modificado | Consume API real, errores HTTP |
+| `src/App.jsx` | Modificado | Pantalla de carga mientras verifica sesión |
+| `docs/fase-1-autenticacion.md` | Creado | Especificaciones técnicas detalladas |
+
+## Qué se implementó
+
+### 1. Proxy Vite (`vite.config.js`)
+Redirige internamente las llamadas de `/api/*` al backend en `localhost:3000`.
+Elimina el problema de CORS sin modificar el backend.
+
+```
+Frontend (localhost:5173) → /api/v1/auth/login
+         ↓ (proxy interno)
+Backend  (localhost:3000) → /api/v1/auth/login
+```
+
+### 2. Cliente HTTP (`src/lib/api.js`)
+Módulo centralizado con dos responsabilidades:
+- Hacer `fetch` con `credentials: 'include'` (envía cookies automáticamente)
+- Normalizar errores HTTP a objetos `Error` con `.status` y `.message`
+
+Endpoints que expone:
+```
+auth.login(email, password)  →  POST /api/v1/auth/login
+auth.logout()                →  POST /api/v1/auth/logout
+me.get()                     →  GET  /api/v1/me
+```
+
+### 3. UserContext — autenticación real
+Tres cambios claves:
+
+**Login real:**
+```
+1. Llama POST /auth/login → backend valida en Supabase
+2. Supabase setea cookies httpOnly (sb-access-token, sb-refresh-token)
+3. Llama GET /me → obtiene perfil completo del usuario
+4. Guarda en estado: { email, name, initials, accountId, role }
+```
+
+**Restauración de sesión al recargar:**
+```
+1. Al montar la app → llama GET /me automáticamente
+2. Si hay cookies válidas → usuario autenticado sin hacer login
+3. Si no hay cookies → muestra LoginPage
+```
+
+**Logout real:**
+```
+1. Llama POST /auth/logout
+2. Backend elimina cookies de Supabase del navegador
+3. user = null → muestra LoginPage
+```
+
+### 4. LoginPage — validación alineada con backend
+- Contraseña: mínimo **8 caracteres** (antes era 4, ahora coincide con el backend)
+- Errores HTTP mapeados a mensajes en español:
+
+| HTTP | Mensaje al usuario |
+|------|--------------------|
+| 400 / 401 | "Credenciales incorrectas." |
+| 429 | "Demasiados intentos. Esperá un momento." |
+| Otro | "No se pudo conectar con el servidor." |
+
+### 5. App.jsx — pantalla de carga
+Mientras `UserContext` verifica si hay sesión activa (llamada a `GET /me`), la app muestra una pantalla de carga en lugar de flashear el login innecesariamente.
+
+## Base de datos relevante (backend)
+
+### Tablas de Supabase Auth (schema `auth`) — solo lectura para nosotros
+| Tabla | Rol |
+|-------|-----|
+| `auth.users` | Usuarios registrados. PK: `id` (UUID), tiene `email` |
+| `auth.sessions` | Sesiones activas |
+| `auth.refresh_tokens` | Tokens de renovación |
+
+### Tabla `profiles` (schema `public`)
+Perfil extendido del usuario.
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id` | UUID (PK = auth.users.id) | Mismo ID que Supabase Auth |
+| `full_name` | String (nullable) | Nombre completo |
+| `preferred_locale` | String (default: "en") | Idioma preferido |
+| `avatar_url` | String (nullable) | URL de foto |
+
+### Tabla `accounts` (schema `public`)
+Espacio de trabajo (club u organización). Un usuario puede pertenecer a varias.
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id` | UUID (PK) | ID de la cuenta |
+| `display_name` | String | Nombre del club |
+| `type` | Enum (individual, corporate) | Tipo de cuenta |
+| `owner_user_id` | UUID FK → auth.users | Dueño de la cuenta |
+
+### Tabla `account_members` (schema `public`)
+Relación usuario ↔ cuenta con rol asignado.
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `account_id` | UUID (PK) | Cuenta |
+| `user_id` | UUID (PK) | Usuario |
+| `role` | Enum | Rol del usuario en la cuenta |
+
+**Roles disponibles:**
+| Rol | Permisos |
+|-----|----------|
+| `owner` | Control total, puede eliminar la cuenta |
+| `administrator` | Control total excepto eliminar cuenta |
+| `technician` | Jugadores, sesiones, métricas |
+| `assistant` | Lectura/escritura limitada |
+| `viewer` | Solo lectura |
+
+## Endpoints usados
+
+| Método | Ruta | Propósito | Rate limit |
+|--------|------|-----------|------------|
+| POST | `/api/v1/auth/login` | Autenticar usuario | 10 req/min |
+| GET | `/api/v1/me` | Obtener perfil + cuenta activa | — |
+| POST | `/api/v1/auth/logout` | Cerrar sesión | — |
+
+## Reglas de negocio aplicadas
+
+1. **Contraseña mínima 8 caracteres** — alineada con la validación Zod del backend
+2. **Un usuario puede tener múltiples cuentas** — `GET /me` retorna `memberships[]`. Por ahora el frontend usa solo `activeAccount`
+3. **La sesión persiste en cookies httpOnly** — el frontend nunca toca ni almacena el JWT directamente
+4. **`accountId` se guarda en UserContext** — será necesario en Fase 2 para todas las llamadas a jugadores/equipos (el backend filtra por tenant)
+
+## Lo que NO cambió
+
+- Diseño visual, colores, tipografías → intactos
+- Jugadores, equipos, sesiones → siguen en localStorage (Fases 2-3)
+- `src/users.js` → existe pero ya no se usa
+
+## Cómo probar
+
+**Prerequisitos:**
+1. Backend corriendo: `npm run dev` en `Web platform-api` (puerto 3000)
+2. Frontend corriendo: `npm run dev` en `elitrax-web-platform` (puerto 5173)
+3. Usuario creado via `POST /api/v1/auth/sign-up`
+
+**Casos de prueba:**
+| Caso | Acción | Resultado esperado |
+|------|--------|--------------------|
+| Login exitoso | Credenciales correctas | Dashboard visible, nombre en sidebar |
+| Login fallido | Contraseña incorrecta | "Credenciales incorrectas." |
+| Contraseña < 8 chars | Menos de 8 caracteres | Error antes de llamar la API |
+| Sesión persistente | Recargar página autenticado | Sigue en dashboard sin re-login |
+| Logout | Clic en cerrar sesión | Vuelve al login, cookies eliminadas |
+| Rate limit | +10 intentos en 1 min | "Demasiados intentos. Esperá un momento." |
+
+---
+
+---
+
+# ⏳ FASE 2 — Jugadores y Equipos
+
+**Estado:** Pendiente
+
+**Qué se hará:**
+- Reemplazar `PlayerContext` (localStorage) por llamadas a `/api/v1/players`
+- Reemplazar `TeamContext` (localStorage) por llamadas a `/api/v1/teams`
+- Conectar CRUD completo de jugadores al backend
+- El `accountId` guardado en Fase 1 se usa como tenant en cada request
+
+**Endpoints a consumir:**
+```
+GET    /api/v1/players
+POST   /api/v1/players
+GET    /api/v1/players/[id]/measurements
+POST   /api/v1/players/[id]/measurements
+GET    /api/v1/players/[id]/injuries
+POST   /api/v1/players/[id]/injuries
+GET    /api/v1/teams
+POST   /api/v1/teams
+GET    /api/v1/teams/[id]/players
+POST   /api/v1/teams/[id]/players
+```
+
+---
+
+# ⏳ FASE 3 — Sesiones y Eventos de Partido
+
+**Estado:** Pendiente
+
+**Qué se hará:**
+- Conectar `MiEquipoView` y `NewSessionModal` a `/api/v1/sessions`
+- Registrar eventos de partido (goles, cambios, tarjetas) en `/api/v1/sessions/[id]/events`
+
+---
+
+# ⏳ FASE 4 — Métricas Derivadas
+
+**Estado:** Pendiente
+
+**Qué se hará:**
+- Calcular `carga`, `km`, `sprints`, `vel`, `estado` desde `session_player_metrics` e `injuries`
+- Crear lógica de agregación en el frontend o solicitar endpoint de resumen al backend
+
+**Brechas identificadas (campos que el frontend usa pero el backend no tiene directamente):**
+| Campo frontend | Origen real en backend |
+|----------------|------------------------|
+| `player.km` | `session_player_metrics.total_distance_meters` (último período) |
+| `player.vel` | `session_player_metrics.max_speed_mps` × 3.6 (conversión a km/h) |
+| `player.sprints` | No existe — pendiente de definición |
+| `player.carga` | No existe — pendiente de definición |
+| `player.estado` | Derivado de `injuries.status` activo |
+
+---
+
+# ⏳ FASE 5 — Funcionalidad Faltante en Backend
+
+**Estado:** Pendiente
+
+**Estructuras que el frontend usa y el backend NO tiene aún:**
+| Necesidad | Acción requerida |
+|-----------|-----------------|
+| `player.files` (archivos/videos) | Crear tabla y endpoints en backend |
+| `player.clubHistory` | Crear tabla y endpoints en backend |
+| `squad.score` (resultado partido) | Agregar campo a `training_sessions` |
+| `squad.formation` (táctica) | Agregar campo a `training_sessions` |
+| `session.explosivity` | Definir cálculo y origen del dato |
+| `session.heatZone` | Derivar de `heatmap_tiles` |
+
+---
+
+# ⏳ FASE 6 — IA y Vitrina
+
+**Estado:** Pendiente
+
+**Qué se hará:**
+- Conectar `OptimizacionView` a `POST /api/v1/ai/recommendations`
+- Adaptar `VitrinaView` para mostrar jugadores reales con perfil público

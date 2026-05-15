@@ -12,7 +12,7 @@
 | Fase 2 | Jugadores y equipos | ✅ Completada |
 | Fase 3 | Sesiones y eventos de partido | ✅ Completada |
 | Fase 4 | Métricas derivadas (carga, estado, km) | ✅ Completada (parcial) |
-| Fase 5 | Funcionalidad faltante en backend | ⏳ Pendiente |
+| Fase 5 | Funcionalidad faltante en backend | ✅ Completada (parcial) |
 | Fase 6 | IA y Vitrina | ⏳ Pendiente |
 
 ---
@@ -377,19 +377,49 @@ Al cargar el roster, `PlayerContext` hace `GET /players/:id/injuries` para todos
 
 ---
 
-# ⏳ FASE 5 — Funcionalidad Faltante en Backend
+# ✅ FASE 5 — Funcionalidad Faltante en Backend
 
-**Estado:** Pendiente
+**Fecha:** Mayo 2026
+**Branch:** `feature/dashboard-interact-v1`
 
-**Estructuras que el frontend usa y el backend NO tiene aún:**
-| Necesidad | Acción requerida |
-|-----------|-----------------|
-| `player.files` (archivos/videos) | Crear tabla y endpoints en backend |
-| `player.clubHistory` | Crear tabla y endpoints en backend |
-| `squad.score` (resultado partido) | Agregar campo a `training_sessions` |
-| `squad.formation` (táctica) | Agregar campo a `training_sessions` |
-| `session.explosivity` | Definir cálculo y origen del dato |
-| `session.heatZone` | Derivar de `heatmap_tiles` |
+## Lo que se implementó (sin cambiar el backend)
+
+### Fix: jersey number — tipo correcto y flujo en dos pasos
+El backend requiere que `jerseyNumber` sea un string `[A-Z0-9]{1,3}` (Zod).
+El frontend enviaba `Number(num)` → fallaba validación silenciosamente.
+
+**Correcciones en `PlayerContext`:**
+- `toBackendCreate` ya no incluye `jerseyNumber` (el schema de `createPlayerInputSchema` no lo acepta)
+- Tras `createAndAssign`, si el jugador tiene número → PATCH separado con `jerseyNumber` como string
+- `updatePlayer` ahora envía `jerseyNumber` como string vía `numToJersey()`
+
+### Sync de mediciones al backend
+`addAnthropometric` ahora hace `POST /players/:id/measurements` además de guardar localmente:
+- `altura → heightCentimeters`
+- `peso → weightKilograms`
+- `grasa → bodyFatPercentage`
+- Si falla el POST, el dato se guarda igual localmente (sin bloquear el flujo)
+
+## Archivos modificados
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/context/PlayerContext.jsx` | Fix jersey number + sync measurements |
+
+## Brechas que requieren cambios en el backend (no implementables desde el frontend)
+
+| Brecha | Razón |
+|--------|-------|
+| `player.files` | No hay tabla ni endpoints en backend |
+| `player.clubHistory` | No hay tabla ni endpoints en backend |
+| `player.displayName / position / birthDate / metadata` update | No existe `PATCH /players/:id` |
+| `squad.score` y `squad.formation` | No hay campos en `training_sessions` |
+| `DELETE /sessions/:id` | No existe en el backend |
+| `DELETE /sessions/:id/events/:id` | No existe en el backend |
+| `player.km`, `player.vel` | No hay endpoint público para `session_player_metrics` |
+| `player.sprints`, `player.carga` | No existen en el backend |
+| Basketball como sport | No está en el enum del backend |
+| Roles titular/suplente/banco en `session_players` | No existe campo `role` en la tabla |
 
 ---
 

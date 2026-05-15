@@ -13,7 +13,7 @@
 | Fase 3 | Sesiones y eventos de partido | ✅ Completada |
 | Fase 4 | Métricas derivadas (carga, estado, km) | ✅ Completada (parcial) |
 | Fase 5 | Funcionalidad faltante en backend | ✅ Completada (parcial) |
-| Fase 6 | IA y Vitrina | ⏳ Pendiente |
+| Fase 6 | IA y Vitrina | ✅ Completada |
 
 ---
 
@@ -423,10 +423,71 @@ El frontend enviaba `Number(num)` → fallaba validación silenciosamente.
 
 ---
 
-# ⏳ FASE 6 — IA y Vitrina
+# ✅ FASE 6 — IA y Vitrina
 
-**Estado:** Pendiente
+**Fecha:** Mayo 2026
+**Branch:** `feature/dashboard-interact-v1`
 
-**Qué se hará:**
-- Conectar `OptimizacionView` a `POST /api/v1/ai/recommendations`
-- Adaptar `VitrinaView` para mostrar jugadores reales con perfil público
+## Archivos modificados
+
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/lib/api.js` | Modificado | Agregado módulo `ai` con `ai.recommendations()` |
+| `src/views/OptimizacionView.jsx` | Modificado | Conectado a `POST /ai/recommendations` con jugadores reales |
+| `src/views/VitrinaView.jsx` | Modificado | Reemplazado `VP` hardcodeado por jugadores reales de `usePlayer()` |
+
+## Qué se implementó
+
+### `src/lib/api.js` — módulo IA
+Nuevo módulo `ai`:
+- `ai.recommendations(data)` → `POST /api/v1/ai/recommendations`
+- Payload: `{ candidates: Candidate[], prompt?: { context?, objective? } }`
+- `Candidate`: `{ playerId, availability, performanceScore, fatigueScore }`
+
+### `OptimizacionView` — integración IA real
+
+`runAnalysis()` ahora:
+1. Filtra jugadores cuyo `id` sea un UUID válido (jugadores del backend)
+2. Construye `candidates[]` con datos reales:
+   - `availability`: derivado de `player.estado` (`ok→available`, `alerta→limited`, `lesion→unavailable`)
+   - `performanceScore`: `score / 100` (calculado por la función interna `calcScore`)
+   - `fatigueScore`: `player.carga / 100`
+3. Llama a `POST /ai/recommendations` con los candidates y un prompt de contexto
+4. Si la llamada falla o no hay UUID players, cae al modo simulación local
+5. El resultado del backend (`aiResult`) se renderiza en la UI
+
+El estado local `vals` para jugadores se inicializa dinámicamente con `useEffect` al cambiar el roster de `usePlayer()` (eliminado el hardcoded `PLAYERS`).
+
+### `VitrinaView` — jugadores reales
+
+La vista ahora consume `usePlayer()` en lugar del array `VP` hardcodeado de `data.js`.
+
+**Función `toVitrina(player)`** mapea el shape de `PlayerContext` al shape de la vitrina:
+| Campo vitrina | Fuente |
+|---------------|--------|
+| `pos` | `normalizePos(player.pos)` — mapea strings del backend a las 4 posiciones del UI |
+| `age` | Calculado desde `player.birthDate` |
+| `since` | `player.clubHistory.at(-1).from` (o `null`) |
+| `tags` | Generados desde posición y `player.stats` |
+| `desc` | Descripción en lenguaje natural generada desde posición, edad y historial |
+| `videos` | `player.files.length` |
+| `saltos`, `distSprint` | `0` (no hay endpoint backend) |
+| `km`, `vel`, `sprints`, `carga` | Directo de `player.*` (actualmente 0 hasta Fase 4 backend) |
+
+**Normalización de posiciones** (`POS_MAP`): mapea strings del backend (ej. `GK`, `DEF`, `MID`, `ST`) a las 4 posiciones del filtro UI.
+
+**Generación de tags** (`buildTags`): hasta 4 tags por jugador basados en posición, goles, asistencias, fair play, velocidad máxima y disponibilidad.
+
+## Endpoints consumidos
+
+| Método | Ruta | Propósito |
+|--------|------|-----------|
+| POST | `/api/v1/ai/recommendations` | Análisis de alineación con IA |
+
+## Brechas conocidas
+
+| Campo | Causa |
+|-------|-------|
+| `player.km`, `player.vel`, `player.sprints`, `player.carga` | Sin endpoint público `session_player_metrics` → vitrina muestra 0 |
+| `player.saltos`, `player.distSprint` | No existen en el backend |
+| IA con jugadores locales (IDs no UUID) | Falls back a simulación local |

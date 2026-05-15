@@ -86,12 +86,13 @@ function fromBackend(rp, localData = {}) {
 }
 
 // ─── Shape del frontend → payload para el backend ────────────────────────────
+// Nota: jerseyNumber NO se incluye aquí porque createPlayerInputSchema no lo acepta.
+// Se setea en un PATCH separado tras crear el jugador (Fase 5).
 function toBackendCreate(player) {
   return {
-    displayName:  player.name,
-    jerseyNumber: player.num !== '' ? Number(player.num) : undefined,
-    position:     player.pos       || undefined,
-    birthDate:    player.birthDate || undefined,
+    displayName: player.name,
+    position:    player.pos       || undefined,
+    birthDate:   player.birthDate || undefined,
     metadata: {
       altura: player.altura || 0,
       peso:   player.peso   || 0,
@@ -99,6 +100,12 @@ function toBackendCreate(player) {
       phone:  player.phone  || '',
     },
   }
+}
+
+// jerseyNumber debe ser string de 1-3 chars alfanuméricos (Zod backend)
+function numToJersey(num) {
+  if (num === '' || num == null) return undefined
+  return String(num).toUpperCase().slice(0, 3)
 }
 
 export function PlayerProvider({ children }) {
@@ -156,16 +163,22 @@ export function PlayerProvider({ children }) {
   const addPlayer = useCallback(async (player) => {
     if (!teamId) return
     const rp = await teamsApi.roster.createAndAssign(teamId, toBackendCreate(player))
+    // Fase 5: jerseyNumber se setea en PATCH separado porque createPlayerInputSchema no lo acepta
+    if (player.num !== '' && player.num != null) {
+      try {
+        await teamsApi.roster.update(teamId, rp.id, { jerseyNumber: numToJersey(player.num) })
+      } catch {} // no bloquea si falla (campo opcional)
+    }
     const localData = loadLocal(teamId)
-    setPlayers(prev => [...prev, fromBackend(rp, localData)])
+    setPlayers(prev => [...prev, fromBackend({ ...rp, jerseyNumber: numToJersey(player.num) }, localData)])
   }, [teamId])
 
   const updatePlayer = useCallback(async (id, changes) => {
     if (!teamId) return
-    // jerseyNumber se sincroniza con el backend; el resto es local
+    // Fase 5: jerseyNumber como string (el backend valida /^[A-Z0-9]{1,3}$/)
     if ('num' in changes) {
       await teamsApi.roster.update(teamId, id, {
-        jerseyNumber: changes.num !== '' ? Number(changes.num) : null,
+        jerseyNumber: numToJersey(changes.num),
       })
     }
     setPlayers(prev => prev.map(p => p.id === id ? { ...p, ...changes } : p))
@@ -206,10 +219,21 @@ export function PlayerProvider({ children }) {
 
   // ── Sub-recursos locales ─────────────────────────────────────────────────────
 
-  const addAnthropometric = useCallback((playerId, data) => {
+  // Fase 5: también POST al backend cuando se agrega una medición
+  const addAnthropometric = useCallback(async (playerId, data) => {
+    const date = data.date || new Date().toISOString().slice(0, 10)
+    try {
+      await playersApi.measurements.create(playerId, {
+        takenAt:           new Date(date).toISOString(),
+        heightCentimeters: data.altura   ? Number(data.altura)   : undefined,
+        weightKilograms:   data.peso     ? Number(data.peso)     : undefined,
+        bodyFatPercentage: data.grasa    ? Number(data.grasa)    : undefined,
+        notes:             data.masaMuscular ? `masaMuscular:${data.masaMuscular}` : undefined,
+      })
+    } catch {} // no bloquea si falla
     setPlayers(prev => prev.map(p =>
       p.id === playerId
-        ? { ...p, anthropometrics: [...p.anthropometrics, { ...data, date: data.date || new Date().toISOString().slice(0,10) }] }
+        ? { ...p, anthropometrics: [...p.anthropometrics, { ...data, date }] }
         : p
     ))
   }, [])

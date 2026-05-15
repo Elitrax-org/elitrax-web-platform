@@ -1,7 +1,73 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { T, glass } from '../tokens'
-import { VP, initials } from '../data'
+import { initials } from '../data'
 import Badge from '../components/Badge'
+import { usePlayer } from '../context/PlayerContext'
+
+// ─── Mapeo de jugador real → shape de vitrina ──────────────────────────────
+
+function calcAge(birthDate) {
+  if (!birthDate) return null
+  const diff = Date.now() - new Date(birthDate).getTime()
+  return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25))
+}
+
+const POS_MAP = {
+  Arquero: 'Arquero', GK: 'Arquero', goalkeeper: 'Arquero',
+  Defensor: 'Defensor', DEF: 'Defensor', defender: 'Defensor', CB: 'Defensor', LB: 'Defensor', RB: 'Defensor',
+  Mediocampista: 'Mediocampista', MID: 'Mediocampista', midfielder: 'Mediocampista', CM: 'Mediocampista', CAM: 'Mediocampista',
+  Delantero: 'Delantero', DEL: 'Delantero', forward: 'Delantero', ST: 'Delantero', CF: 'Delantero',
+}
+
+function normalizePos(pos) {
+  if (!pos) return 'Mediocampista'
+  return POS_MAP[pos] || POS_MAP[pos.toUpperCase()] || pos
+}
+
+function buildTags(player) {
+  const tags = []
+  const pos = normalizePos(player.pos)
+  if (pos === 'Arquero') tags.push('Portero')
+  if (pos === 'Defensor') tags.push('Defensivo')
+  if (pos === 'Delantero') tags.push('Atacante')
+  if (pos === 'Mediocampista') tags.push('Creativo')
+  const s = player.stats || {}
+  if ((s.goles || 0) >= 5) tags.push('Goleador')
+  if ((s.asistencias || 0) >= 3) tags.push('Asistidor')
+  if ((s.amarillas || 0) === 0 && (s.rojas || 0) === 0 && (s.partidosJugados || 0) > 0) tags.push('Fair Play')
+  if ((player.vel || 0) >= 28) tags.push('Explosivo')
+  if ((player.km  || 0) >= 10) tags.push('Gran Fondo')
+  if (player.estado === 'ok' && (s.partidosJugados || 0) > 0) tags.push('Disponible')
+  if (tags.length < 2) tags.push('Polivalente')
+  return tags.slice(0, 4)
+}
+
+function buildDesc(player) {
+  const pos  = normalizePos(player.pos)
+  const age  = calcAge(player.birthDate)
+  const last = (player.clubHistory || []).at(-1)
+  const club = last?.club ? ` Su último club: ${last.club}.` : ''
+  const s    = player.stats || {}
+  const gls  = s.goles ? ` ${s.goles} goles` : ''
+  const asis = s.asistencias ? ` y ${s.asistencias} asistencias` : ''
+  const part = s.partidosJugados ? ` en ${s.partidosJugados} partidos.` : '.'
+  return `${pos}${age ? ` de ${age} años` : ''}.${club}${gls || asis ? ` Acumula${gls}${asis}${part}` : ''}`
+}
+
+function toVitrina(player) {
+  return {
+    ...player,
+    pos:       normalizePos(player.pos),
+    age:       calcAge(player.birthDate),
+    since:     (player.clubHistory || []).at(-1)?.from || null,
+    tags:      buildTags(player),
+    desc:      buildDesc(player),
+    saltos:    0,
+    distSprint: 0,
+    videos:    (player.files || []).length,
+    // km, vel, sprints, carga ya vienen del player
+  }
+}
 
 const POSF = ['Todos', 'Arquero', 'Defensor', 'Mediocampista', 'Delantero']
 
@@ -25,7 +91,7 @@ function PlayerModal({ player, onClose, contactados, onContact }) {
           </div>
           <div style={{ flex:1 }}>
             <div style={{ fontFamily:T.exo, fontWeight:700, fontSize:22, color:T.white }}>{player.name}</div>
-            <div style={{ fontFamily:T.dm, fontSize:13, color:T.muted, marginTop:3 }}>{player.pos} · {player.age} años · #{player.num}</div>
+            <div style={{ fontFamily:T.dm, fontSize:13, color:T.muted, marginTop:3 }}>{player.pos}{player.age ? ` · ${player.age} años` : ''} · #{player.num || '—'}</div>
             <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginTop:8 }}>
               {player.tags.map(t => (
                 <span key={t} style={{ fontFamily:T.dm, fontSize:10, fontWeight:600, color:T.cian, background:T.cianDim, border:`1px solid ${T.cian}22`, borderRadius:20, padding:'3px 9px' }}>{t}</span>
@@ -132,6 +198,9 @@ function PlayerModal({ player, onClose, contactados, onContact }) {
 }
 
 export default function VitrinaView() {
+  const { players: rawPlayers } = usePlayer()
+  const VP = useMemo(() => (rawPlayers || []).map(toVitrina), [rawPlayers])
+
   const [search, setSearch] = useState('')
   const [pos,    setPos]    = useState('Todos')
   const [velMin, setVelMin] = useState(0)
@@ -245,7 +314,7 @@ export default function VitrinaView() {
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontFamily:T.dm, fontWeight:600, fontSize:14, color:T.white, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.name}</div>
-                        <div style={{ fontFamily:T.dm, fontSize:11, color:T.muted, marginTop:2 }}>{p.pos} · {p.age} años</div>
+                        <div style={{ fontFamily:T.dm, fontSize:11, color:T.muted, marginTop:2 }}>{p.pos}{p.age ? ` · ${p.age} años` : ''}</div>
                         <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginTop:6 }}>
                           {p.tags.map(t => (
                             <span key={t} style={{ fontFamily:T.dm, fontSize:9, fontWeight:600, color:T.cian, background:T.cianDim, border:`1px solid ${T.cian}22`, borderRadius:20, padding:'2px 7px' }}>{t}</span>

@@ -100,6 +100,18 @@ export const teams = {
   },
 }
 
+// ─── IA ───────────────────────────────────────────────────────────────────────
+
+export const ai = {
+  /**
+   * POST /ai/recommendations → recomendaciones de alineación
+   * @param {{ candidates: Candidate[], prompt?: { context?: string, objective?: string } }} data
+   * Candidate: { playerId, availability, performanceScore, fatigueScore, daysSinceLastInjury? }
+   */
+  recommendations: (data) =>
+    request('/ai/recommendations', { method: 'POST', body: JSON.stringify(data) }),
+}
+
 // ─── Sessions ─────────────────────────────────────────────────────────────────
 
 export const sessions = {

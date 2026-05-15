@@ -1,13 +1,32 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { T, glass } from '../tokens'
-import { PLAYERS, TACTICAS, ESTILOS, VAR_DEF, calcScore, genVals, initials } from '../data'
+import { PLAYERS, TACTICAS, ESTILOS, VAR_DEF, calcScore, initials } from '../data'
+import { usePlayer } from '../context/PlayerContext'
+import { ai as aiApi } from '../lib/api'
 import Badge from '../components/Badge'
 import ScoreBar from '../components/ScoreBar'
 
+// Genera valores técnicos iniciales para un jugador (6-9 aleatorio)
+function initValsForPlayer(playerId, vars) {
+  const v = {}
+  vars.forEach(va => { v[va.id] = Math.floor(Math.random() * 4) + 6 })
+  return { [playerId]: v }
+}
+
+// Deriva availability del backend para el endpoint de IA
+function toAvailability(estado) {
+  if (estado === 'ok')   return 'available'
+  if (estado === 'alerta') return 'limited'
+  return 'unavailable'
+}
+
 export default function OptimizacionView() {
+  const { players: ctxPlayers } = usePlayer()
+  const players = ctxPlayers.length ? ctxPlayers : PLAYERS
+
   const [tab,        setTab]        = useState('variables')
   const [vars,       setVars]       = useState(VAR_DEF)
-  const [vals,       setVals]       = useState(genVals)
+  const [vals,       setVals]       = useState({})
   const [newName,    setNewName]    = useState('')
   const [newPeso,    setNewPeso]    = useState(5)
   const [tacPropia,  setTacPropia]  = useState('4-3-3')
@@ -17,8 +36,24 @@ export default function OptimizacionView() {
   const [rivalName,  setRivalName]  = useState('Talleres')
   const [analyzing,  setAnalyzing]  = useState(false)
   const [analyzed,   setAnalyzed]   = useState(false)
+  const [aiResult,   setAiResult]   = useState(null)
 
-  const scores   = PLAYERS.map(p => ({ ...p, score: calcScore(p, vars, vals) })).sort((a, b) => parseFloat(b.score) - parseFloat(a.score))
+  // Inicializa vals para jugadores nuevos que no tienen entradas aún
+  useEffect(() => {
+    setVals(prev => {
+      const next = { ...prev }
+      let changed = false
+      players.forEach(p => {
+        if (!next[p.id]) {
+          Object.assign(next, initValsForPlayer(p.id, vars))
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+  }, [players, vars])
+
+  const scores   = players.map(p => ({ ...p, score: calcScore(p, vars, vals) })).sort((a, b) => parseFloat(b.score) - parseFloat(a.score))
   const disp     = scores.filter(p => p.estado !== 'lesion')
   const titulares = disp.slice(0, 11)
   const suplentes = disp.slice(11)
@@ -29,7 +64,7 @@ export default function OptimizacionView() {
     setVars(v => [...v, nv])
     setVals(prev => {
       const n = { ...prev }
-      PLAYERS.forEach(p => { n[p.id] = { ...(n[p.id] || {}), [nv.id]: 6 } })
+      players.forEach(p => { n[p.id] = { ...(n[p.id] || {}), [nv.id]: 6 } })
       return n
     })
     setNewName('')
@@ -38,7 +73,39 @@ export default function OptimizacionView() {
 
   const setV = (pid, vid, v) => setVals(prev => ({ ...prev, [pid]: { ...prev[pid], [vid]: v } }))
 
-  const runAnalysis = () => { setAnalyzing(true); setTimeout(() => { setAnalyzing(false); setAnalyzed(true) }, 2200) }
+  const runAnalysis = async () => {
+    setAnalyzing(true)
+    setAiResult(null)
+
+    // Solo enviamos jugadores con UUID válido (de backend)
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const candidates = players
+      .filter(p => uuidRe.test(String(p.id)))
+      .map(p => ({
+        playerId:          p.id,
+        availability:      toAvailability(p.estado),
+        performanceScore:  Math.min(parseFloat(calcScore(p, vars, vals)) / 100, 1),
+        fatigueScore:      Math.min((p.carga || 0) / 100, 1),
+      }))
+
+    if (candidates.length >= 1) {
+      try {
+        const result = await aiApi.recommendations({
+          candidates,
+          prompt: {
+            context:   `Partido vs ${rivalName}. Táctica propia: ${tacPropia}. Estilo: ${estPropio}. Táctica rival: ${tacRival} (${estRival}).`,
+            objective: 'Recomendar el XI titular óptimo considerando disponibilidad, rendimiento y fatiga.',
+          },
+        })
+        setAiResult(result)
+      } catch {
+        // Si el endpoint falla, mostramos igual el análisis local
+      }
+    }
+
+    setAnalyzing(false)
+    setAnalyzed(true)
+  }
 
   const TABS = [
     { id:'variables',  label:'Variables técnicas' },

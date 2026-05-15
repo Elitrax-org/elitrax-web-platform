@@ -1,11 +1,16 @@
 import { T, glass } from '../tokens'
-import { NAV, GROUPS } from '../data'
+import { NAV, GROUPS, SPORTS } from '../data'
 import Logo from './Logo'
 import Badge from './Badge'
 import { useUser } from '../context/UserContext'
+import { useTeam } from '../context/TeamContext'
+
+const SPORT_ICONS = { football:'⚽', rugby:'🏉', hockey:'🏑', basketball:'🏀' }
 
 export default function Sidebar({ active, onChange, onSignOut }) {
   const { user } = useUser()
+  const { sport } = useTeam()
+  const currentSport = SPORTS.find(s => s.id === sport)
   return (
     <div style={{
       width: 220, height: '100vh', flexShrink: 0,
@@ -20,14 +25,18 @@ export default function Sidebar({ active, onChange, onSignOut }) {
       <div style={{ padding: '14px 16px', borderBottom: `1px solid ${T.border}`, margin: '0 0 8px' }}>
         <div style={{ ...glass(10), padding: '10px 12px' }}>
           <div style={{ fontFamily:T.dm, fontWeight:600, fontSize:12, color:T.white, lineHeight:1.3 }}>
-            Club Atlético Belgrano — Sub 20
+            {user?.name}
           </div>
           <div style={{ fontFamily:T.dm, fontSize:11, color:T.muted, marginTop:3 }}>
-            Fútbol 11 · Temporada 2026
+            {currentSport
+              ? `${SPORT_ICONS[sport]} ${currentSport.label} · Temporada 2026`
+              : 'Sin deporte configurado'}
           </div>
-          <div style={{ marginTop:6 }}>
-            <Badge label={user?.label || 'Director Técnico'} color={T.cian} />
-          </div>
+          {currentSport && (
+            <div style={{ marginTop:6 }}>
+              <Badge label={currentSport.label} color={currentSport.color} />
+            </div>
+          )}
         </div>
       </div>
 

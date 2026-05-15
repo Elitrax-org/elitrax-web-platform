@@ -28,8 +28,8 @@ export default function PlayerDetailModal({ player, onClose }) {
       >
         {/* Header */}
         <div style={{ padding:'24px 28px', borderBottom:`1px solid ${T.border}`, display:'flex', gap:16, alignItems:'flex-start' }}>
-          <div style={{ width:56, height:56, borderRadius:16, flexShrink:0, background:`linear-gradient(135deg,${T.cian}55 0%,${T.bg3} 100%)`, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:T.exo, fontWeight:800, fontSize:18, color:T.cian }}>
-            {initials(player.name)}
+          <div style={{ width:56, height:56, borderRadius:'50%', flexShrink:0, overflow:'hidden', background: player.photo ? 'none' : `linear-gradient(135deg,${T.cian}55 0%,${T.bg3} 100%)`, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:T.exo, fontWeight:800, fontSize:18, color:T.cian, border: player.photo ? 'none' : undefined }}>
+            {player.photo ? <img src={player.photo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : initials(player.name)}
           </div>
           <div style={{ flex:1 }}>
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>

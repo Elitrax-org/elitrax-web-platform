@@ -9,7 +9,7 @@
 | Fase | Descripción | Estado |
 |------|-------------|--------|
 | Fase 1 | Autenticación real | ✅ Completada |
-| Fase 2 | Jugadores y equipos | ⏳ Pendiente |
+| Fase 2 | Jugadores y equipos | ✅ Completada |
 | Fase 3 | Sesiones y eventos de partido | ⏳ Pendiente |
 | Fase 4 | Métricas derivadas (carga, estado, km) | ⏳ Pendiente |
 | Fase 5 | Funcionalidad faltante en backend | ⏳ Pendiente |
@@ -192,29 +192,75 @@ Relación usuario ↔ cuenta con rol asignado.
 
 ---
 
-# ⏳ FASE 2 — Jugadores y Equipos
+# ✅ FASE 2 — Jugadores y Equipos
 
-**Estado:** Pendiente
+**Fecha:** Mayo 2026
+**Branch:** `feature/dashboard-interact-v1`
 
-**Qué se hará:**
-- Reemplazar `PlayerContext` (localStorage) por llamadas a `/api/v1/players`
-- Reemplazar `TeamContext` (localStorage) por llamadas a `/api/v1/teams`
-- Conectar CRUD completo de jugadores al backend
-- El `accountId` guardado en Fase 1 se usa como tenant en cada request
+## Archivos modificados
 
-**Endpoints a consumir:**
-```
-GET    /api/v1/players
-POST   /api/v1/players
-GET    /api/v1/players/[id]/measurements
-POST   /api/v1/players/[id]/measurements
-GET    /api/v1/players/[id]/injuries
-POST   /api/v1/players/[id]/injuries
-GET    /api/v1/teams
-POST   /api/v1/teams
-GET    /api/v1/teams/[id]/players
-POST   /api/v1/teams/[id]/players
-```
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/lib/api.js` | Extendido | Endpoints de teams y players |
+| `src/context/TeamContext.jsx` | Reescrito | Equipos desde API real |
+| `src/context/PlayerContext.jsx` | Reescrito | Roster desde API real |
+| `src/App.jsx` | Modificado | Orden correcto de providers |
+
+## Qué se implementó
+
+### TeamContext
+- Al montar: `GET /teams` → activa el primer equipo encontrado
+- `setSport(sportType)`:
+  - Si el deporte está soportado (`football|hockey|rugby`) → `POST /teams` con `{ name: 'Mi Equipo', sportType }`
+  - Si es `basketball` → solo guarda localmente hasta Fase 5
+- Expone: `{ teamId, sport, teamName, loading, error, setSport }`
+
+### PlayerContext
+- Lee `teamId` de `useTeam()` — requiere que `TeamProvider` sea el provider padre
+- Al cambiar `teamId`: `GET /teams/:teamId/players` → carga roster
+- Sub-recursos sin endpoint de backend (anthropometrics, injuries, files, clubHistory, stats) → `localStorage` con clave `elitrax_player_local_${teamId}`
+
+### CRUD de jugadores
+| Operación | Backend | Local |
+|-----------|---------|-------|
+| Agregar | `POST /teams/:id/players/create-and-assign` | — |
+| Editar número | `PATCH /teams/:id/players/:playerId` | sincronizado |
+| Editar resto | — | estado React + localStorage |
+| Eliminar | `DELETE /teams/:id/players/:playerId` | — |
+
+### Mapeo de campos
+| Frontend | Backend |
+|----------|---------|
+| `name` | `displayName` |
+| `num` | `jerseyNumber` |
+| `pos` | `position` |
+| `birthDate` | `birthDate` |
+| `altura, peso, email, phone` | `metadata` (JSON) |
+| `km, sprints, vel, carga` | `0` hasta Fase 4 |
+| `estado` | `'ok'` hasta Fase 4 |
+
+### App.jsx — orden de providers corregido
+`TeamProvider` envuelve a `PlayerProvider` para que `PlayerContext` pueda llamar `useTeam()`.
+
+## Endpoints consumidos
+
+| Método | Ruta | Propósito |
+|--------|------|-----------|
+| GET | `/api/v1/teams` | Cargar equipo activo al montar |
+| POST | `/api/v1/teams` | Crear equipo al seleccionar deporte |
+| GET | `/api/v1/teams/:id/players` | Cargar roster del equipo |
+| POST | `/api/v1/teams/:id/players/create-and-assign` | Agregar jugador |
+| PATCH | `/api/v1/teams/:id/players/:playerId` | Actualizar dorsalNumber |
+| DELETE | `/api/v1/teams/:id/players/:playerId` | Eliminar jugador |
+
+## Brechas conocidas (pendientes de Fases siguientes)
+| Brecha | Fase |
+|--------|------|
+| `basketball` no soportado por backend | Fase 5 |
+| `km, vel, sprints, carga` hardcodeados en `0` | Fase 4 |
+| `estado` hardcodeado en `'ok'` | Fase 4 |
+| `injuries, files, clubHistory` solo en localStorage | Fase 5 |
+| Editar `displayName`, `position`, `birthDate`, `metadata` no se sincroniza al backend | Fase 5 |
 
 ---
 

@@ -1,5 +1,23 @@
+/**
+ * PlayerContext — Fase 2
+ *
+ * Gestiona el roster del equipo activo.
+ * - Carga jugadores desde GET /teams/:teamId/players cuando cambia el equipo.
+ * - CRUD conectado al backend via teams.roster.*
+ * - Sub-recursos (injuries, anthropometrics, files, clubHistory) → localStorage.
+ * - Métricas GPS (km, sprints, vel, carga) y estado → constantes hasta Fase 4.
+ *
+ * Mapeo de campos:
+ *   frontend.name          → backend.displayName
+ *   frontend.num           → backend.jerseyNumber
+ *   frontend.pos           → backend.position
+ *   frontend.birthDate     → backend.birthDate
+ *   frontend.{altura,peso,email,phone} → backend.metadata
+ */
+
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
-import { PLAYERS } from '../data'
+import { useTeam } from './TeamContext'
+import { teams as teamsApi } from '../lib/api'
 
 const PlayerContext = createContext()
 
@@ -7,57 +25,126 @@ export function usePlayer() {
   return useContext(PlayerContext)
 }
 
-const storageKey = (email) => `elitrax_players_${email}`
+// ─── localStorage para sub-recursos por equipo ────────────────────────────────
+const localKey = (teamId) => `elitrax_player_local_${teamId}`
 
-function loadPlayers(email) {
+function loadLocal(teamId) {
   try {
-    const saved = localStorage.getItem(storageKey(email))
+    const saved = localStorage.getItem(localKey(teamId))
     if (saved) return JSON.parse(saved)
   } catch {}
-  return PLAYERS.map(p => enrich(p))
+  return {}
 }
 
-function enrich(p) {
+function saveLocal(teamId, data) {
+  try { localStorage.setItem(localKey(teamId), JSON.stringify(data)) } catch {}
+}
+
+// ─── Backend RosterPlayer → shape del frontend ────────────────────────────────
+function fromBackend(rp, localData = {}) {
+  const meta  = rp.metadata || {}
+  const local = localData[rp.id] || {}
   return {
-    ...p,
-    birthDate: p.birthDate || '',
-    altura: p.altura || 0,
-    peso: p.peso || 0,
-    email: p.email || '',
-    phone: p.phone || '',
-    anthropometrics: p.anthropometrics || [],
-    clubHistory: p.clubHistory || [],
-    files: p.files || [],
-    injuries: p.injuries || [],
-    stats: p.stats || { partidosJugados:0, minutosJugados:0, goles:0, asistencias:0, amarillas:0, rojas:0 },
-    estado: p.estado || 'ok',
-    km: p.km || 0, sprints: p.sprints || 0, vel: p.vel || 0, carga: p.carga || 0,
+    id:        rp.id,
+    name:      rp.displayName,
+    num:       rp.jerseyNumber ?? '',
+    pos:       rp.position    ?? '',
+    birthDate: rp.birthDate   ?? '',
+    altura:    meta.altura    ?? 0,
+    peso:      meta.peso      ?? 0,
+    email:     meta.email     ?? '',
+    phone:     meta.phone     ?? '',
+    // Sub-recursos almacenados localmente
+    anthropometrics: local.anthropometrics || [],
+    clubHistory:     local.clubHistory     || [],
+    files:           local.files           || [],
+    injuries:        local.injuries        || [],
+    stats:           local.stats           || { partidosJugados:0, minutosJugados:0, goles:0, asistencias:0, amarillas:0, rojas:0 },
+    // Métricas GPS — Fase 4
+    estado: 'ok', km: 0, sprints: 0, vel: 0, carga: 0,
   }
 }
 
-export function PlayerProvider({ children, userEmail }) {
-  const [players, setPlayers] = useState(() => loadPlayers(userEmail))
+// ─── Shape del frontend → payload para el backend ────────────────────────────
+function toBackendCreate(player) {
+  return {
+    displayName:  player.name,
+    jerseyNumber: player.num !== '' ? Number(player.num) : undefined,
+    position:     player.pos       || undefined,
+    birthDate:    player.birthDate || undefined,
+    metadata: {
+      altura: player.altura || 0,
+      peso:   player.peso   || 0,
+      email:  player.email  || '',
+      phone:  player.phone  || '',
+    },
+  }
+}
 
+export function PlayerProvider({ children }) {
+  const { teamId } = useTeam()
+
+  const [players, setPlayers] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState(null)
+
+  // ── Carga roster cuando cambia el equipo activo ──────────────────────────────
   useEffect(() => {
-    setPlayers(loadPlayers(userEmail))
-  }, [userEmail])
+    if (!teamId) { setPlayers([]); return }
 
+    setLoading(true)
+    setError(null)
+
+    teamsApi.roster.list(teamId)
+      .then(({ roster }) => {
+        const localData = loadLocal(teamId)
+        setPlayers((roster || []).map(rp => fromBackend(rp, localData)))
+      })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [teamId])
+
+  // ── Persistir sub-recursos locales cuando cambian los jugadores ──────────────
   useEffect(() => {
-    if (!userEmail) return
-    try { localStorage.setItem(storageKey(userEmail), JSON.stringify(players)) } catch {}
-  }, [players, userEmail])
+    if (!teamId || players.length === 0) return
+    const localData = {}
+    players.forEach(p => {
+      localData[p.id] = {
+        anthropometrics: p.anthropometrics,
+        clubHistory:     p.clubHistory,
+        files:           p.files,
+        injuries:        p.injuries,
+        stats:           p.stats,
+      }
+    })
+    saveLocal(teamId, localData)
+  }, [players, teamId])
 
-  const addPlayer = useCallback(player => {
-    setPlayers(prev => [...prev, enrich({ ...player, id: Date.now() })])
-  }, [])
+  // ── CRUD backend ─────────────────────────────────────────────────────────────
 
-  const updatePlayer = useCallback((id, changes) => {
+  const addPlayer = useCallback(async (player) => {
+    if (!teamId) return
+    const rp = await teamsApi.roster.createAndAssign(teamId, toBackendCreate(player))
+    const localData = loadLocal(teamId)
+    setPlayers(prev => [...prev, fromBackend(rp, localData)])
+  }, [teamId])
+
+  const updatePlayer = useCallback(async (id, changes) => {
+    if (!teamId) return
+    // jerseyNumber se sincroniza con el backend; el resto es local
+    if ('num' in changes) {
+      await teamsApi.roster.update(teamId, id, {
+        jerseyNumber: changes.num !== '' ? Number(changes.num) : null,
+      })
+    }
     setPlayers(prev => prev.map(p => p.id === id ? { ...p, ...changes } : p))
-  }, [])
+  }, [teamId])
 
-  const deletePlayer = useCallback(id => {
+  const deletePlayer = useCallback(async (id) => {
+    if (!teamId) return
+    await teamsApi.roster.remove(teamId, id)
     setPlayers(prev => prev.filter(p => p.id !== id))
-  }, [])
+  }, [teamId])
 
   const reorderPlayers = useCallback((fromIdx, toIdx) => {
     setPlayers(prev => {
@@ -67,6 +154,8 @@ export function PlayerProvider({ children, userEmail }) {
       return list
     })
   }, [])
+
+  // ── Sub-recursos locales ─────────────────────────────────────────────────────
 
   const addAnthropometric = useCallback((playerId, data) => {
     setPlayers(prev => prev.map(p =>
@@ -87,8 +176,11 @@ export function PlayerProvider({ children, userEmail }) {
   const closeInjury = useCallback((playerId, injuryId) => {
     setPlayers(prev => prev.map(p =>
       p.id === playerId
-        ? { ...p, injuries: p.injuries.map(i => i.id === injuryId ? { ...i, closedAt: new Date().toISOString() } : i),
-            estado: p.injuries.some(i => i.id !== injuryId && !i.closedAt) ? 'lesion' : 'ok' }
+        ? {
+            ...p,
+            injuries: p.injuries.map(i => i.id === injuryId ? { ...i, closedAt: new Date().toISOString() } : i),
+            estado: p.injuries.some(i => i.id !== injuryId && !i.closedAt) ? 'lesion' : 'ok',
+          }
         : p
     ))
   }, [])
@@ -127,7 +219,8 @@ export function PlayerProvider({ children, userEmail }) {
 
   return (
     <PlayerContext.Provider value={{
-      players, addPlayer, updatePlayer, deletePlayer, reorderPlayers,
+      players, loading, error,
+      addPlayer, updatePlayer, deletePlayer, reorderPlayers,
       addAnthropometric, addInjury, closeInjury, addFile, deleteFile, addClub, removeClub,
     }}>
       {children}

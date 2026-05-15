@@ -28,13 +28,13 @@ function AppShell() {
 
   if (!isAuth) return <LoginPage />
 
-  // TeamProvider lives here so it re-mounts with the correct userEmail on login
+  // TeamProvider must be outer so PlayerProvider can call useTeam()
   return (
-    <PlayerProvider userEmail={user.email}>
-      <TeamProvider userEmail={user.email}>
-        <AppShellInner section={section} setSection={setSection} signout={signout} />
-      </TeamProvider>
-    </PlayerProvider>
+    <TeamProvider>
+      <PlayerProvider>
+        <AppShellInner section={section} setSection={setSection} />
+      </PlayerProvider>
+    </TeamProvider>
   )
 }
 

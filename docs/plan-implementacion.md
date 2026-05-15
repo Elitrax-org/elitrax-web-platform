@@ -264,13 +264,66 @@ Relación usuario ↔ cuenta con rol asignado.
 
 ---
 
-# ⏳ FASE 3 — Sesiones y Eventos de Partido
+# ✅ FASE 3 — Sesiones y Eventos de Partido
 
-**Estado:** Pendiente
+**Fecha:** Mayo 2026
+**Branch:** `feature/dashboard-interact-v1`
 
-**Qué se hará:**
-- Conectar `MiEquipoView` y `NewSessionModal` a `/api/v1/sessions`
-- Registrar eventos de partido (goles, cambios, tarjetas) en `/api/v1/sessions/[id]/events`
+## Archivos modificados
+
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/lib/api.js` | Extendido | Endpoints de sessions y events |
+| `src/context/SessionContext.jsx` | Creado | Sesiones y eventos desde API real |
+| `src/views/MiEquipoView.jsx` | Modificado | Usa SessionContext en lugar de TeamContext |
+| `src/App.jsx` | Modificado | SessionProvider agregado al árbol de providers |
+
+## Qué se implementó
+
+### SessionContext
+- Al montar: `GET /sessions` → carga todas las sesiones de la cuenta
+- `addSquad(form)` → `POST /sessions` con `{ teamId, kind, scheduledFor, notes, playerIds }`
+- `addSquadEvent(sessionId, event)` → `POST /sessions/:id/events` con `{ kind, matchMinute, playerId, payload }`
+- `updateSquad` / `deleteSquad` / `removeSquadEvent` → solo estado local (sin PATCH/DELETE en backend)
+- Campos sin soporte en backend → guardados en `localStorage` con clave `elitrax_session_local_${teamId}`
+
+### Mapeo de tipos de sesión
+| Frontend | Backend |
+|----------|---------|
+| `partido` | `match` |
+| `entrenamiento` | `team_training` |
+
+### Mapeo de tipos de evento
+| Frontend | Backend |
+|----------|---------|
+| `gol` | `goal` |
+| `asistencia` | `assist` |
+| `amarilla` | `yellow_card` |
+| `roja` | `red_card` |
+| `cambio` | `substitution` |
+| `lesion` | `injury` |
+| `penal` | `shot` |
+| `otros` | `note` |
+
+### MiEquipoView — cambio de contexto
+La vista dejó de usar `useTeam()` para squads y ahora usa `useSession()`.
+
+## Endpoints consumidos
+
+| Método | Ruta | Propósito |
+|--------|------|-----------|
+| GET | `/api/v1/sessions` | Cargar sesiones al montar |
+| POST | `/api/v1/sessions` | Crear nuevo partido o entrenamiento |
+| POST | `/api/v1/sessions/:id/events` | Registrar evento de partido |
+
+## Brechas conocidas (pendientes de Fases siguientes)
+| Brecha | Fase |
+|--------|------|
+| `rival`, `venue`, `formation`, `score` no están en el schema de backend | Fase 5 |
+| Roles de jugadores (titular/suplente/banco) no están en `session_players` | Fase 5 |
+| No hay `DELETE /sessions/:id` — deleteSquad es solo local | Fase 5 |
+| No hay `DELETE /sessions/:id/events/:id` — removeSquadEvent es solo local | Fase 5 |
+| Eventos con `relatedPlayerId` (cambios) guardados solo en localStorage payload | Fase 5 |
 
 ---
 

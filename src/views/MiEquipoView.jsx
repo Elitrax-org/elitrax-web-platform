@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { T, glass } from '../tokens'
 import { PLAYERS, TEAM_HISTORY, TEAM_EVENT_TYPES, TACTICAS, initials } from '../data'
-import { useTeam } from '../context/TeamContext'
+import { useSession } from '../context/SessionContext'
 import { usePlayer } from '../context/PlayerContext'
 import { useToast } from '../context/ToastContext'
 import Badge from '../components/Badge'
@@ -21,7 +21,7 @@ const ROLE_COLORS = { titular:T.cian, suplente:T.naranja, banco:T.faint }
 
 export default function MiEquipoView() {
   const { players:ctxPlayers, updatePlayer } = usePlayer()
-  const { squads, addSquad, updateSquad, deleteSquad, addSquadEvent, removeSquadEvent } = useTeam()
+  const { squads, addSquad, updateSquad, deleteSquad, addSquadEvent, removeSquadEvent } = useSession()
   const toast = useToast()
 
   const players = ctxPlayers.length ? ctxPlayers : PLAYERS

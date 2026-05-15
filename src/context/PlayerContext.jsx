@@ -17,7 +17,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useTeam } from './TeamContext'
-import { teams as teamsApi } from '../lib/api'
+import { teams as teamsApi, players as playersApi } from '../lib/api'
 
 const PlayerContext = createContext()
 
@@ -38,6 +38,26 @@ function loadLocal(teamId) {
 
 function saveLocal(teamId, data) {
   try { localStorage.setItem(localKey(teamId), JSON.stringify(data)) } catch {}
+}
+
+// ─── Deriva estado del jugador desde injuries del backend ────────────────────
+// Backend injury.status: 'injured' | 'recovering' | 'recovered'
+function deriveEstado(injuries) {
+  if (!injuries || injuries.length === 0) return 'ok'
+  if (injuries.some(i => i.status === 'injured'))    return 'lesion'
+  if (injuries.some(i => i.status === 'recovering')) return 'alerta'
+  return 'ok'
+}
+
+// ─── Backend PlayerMeasurement → entrada de anthropometrics ──────────────────
+function measurementToAnthro(m) {
+  return {
+    date:         m.takenAt?.slice(0, 10) || '',
+    altura:       m.heightCentimeters  ?? 0,
+    peso:         m.weightKilograms    ?? 0,
+    grasa:        m.bodyFatPercentage  ?? 0,
+    masaMuscular: 0,
+  }
 }
 
 // ─── Backend RosterPlayer → shape del frontend ────────────────────────────────
@@ -88,7 +108,7 @@ export function PlayerProvider({ children }) {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
 
-  // ── Carga roster cuando cambia el equipo activo ──────────────────────────────
+  // ── Carga roster y deriva estado desde injuries (Fase 4) ─────────────────────
   useEffect(() => {
     if (!teamId) { setPlayers([]); return }
 
@@ -96,9 +116,20 @@ export function PlayerProvider({ children }) {
     setError(null)
 
     teamsApi.roster.list(teamId)
-      .then(({ roster }) => {
+      .then(async ({ roster }) => {
         const localData = loadLocal(teamId)
-        setPlayers((roster || []).map(rp => fromBackend(rp, localData)))
+        const base = (roster || []).map(rp => fromBackend(rp, localData))
+        setPlayers(base)
+
+        // Fase 4: fetch injuries en paralelo para derivar el estado de cada jugador
+        const results = await Promise.allSettled(
+          base.map(p => playersApi.injuries.list(p.id))
+        )
+        setPlayers(prev => prev.map((p, i) => {
+          const r = results[i]
+          if (r.status !== 'fulfilled') return p
+          return { ...p, estado: deriveEstado(r.value?.injuries) }
+        }))
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
@@ -145,6 +176,24 @@ export function PlayerProvider({ children }) {
     await teamsApi.roster.remove(teamId, id)
     setPlayers(prev => prev.filter(p => p.id !== id))
   }, [teamId])
+
+  // Fase 4: carga mediciones del backend y actualiza anthropometrics del jugador (lazy)
+  const loadPlayerMeasurements = useCallback(async (playerId) => {
+    const { measurements } = await playersApi.measurements.list(playerId)
+    if (!measurements || measurements.length === 0) return
+    const sorted = [...measurements].sort((a, b) => new Date(b.takenAt) - new Date(a.takenAt))
+    const latest  = sorted[0]
+    const antros  = sorted.map(measurementToAnthro)
+    setPlayers(prev => prev.map(p => p.id === playerId
+      ? {
+          ...p,
+          altura:          latest.heightCentimeters ?? p.altura,
+          peso:            latest.weightKilograms   ?? p.peso,
+          anthropometrics: antros,
+        }
+      : p
+    ))
+  }, [])
 
   const reorderPlayers = useCallback((fromIdx, toIdx) => {
     setPlayers(prev => {
@@ -222,6 +271,7 @@ export function PlayerProvider({ children }) {
       players, loading, error,
       addPlayer, updatePlayer, deletePlayer, reorderPlayers,
       addAnthropometric, addInjury, closeInjury, addFile, deleteFile, addClub, removeClub,
+      loadPlayerMeasurements,
     }}>
       {children}
     </PlayerContext.Provider>

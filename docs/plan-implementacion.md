@@ -10,8 +10,8 @@
 |------|-------------|--------|
 | Fase 1 | Autenticación real | ✅ Completada |
 | Fase 2 | Jugadores y equipos | ✅ Completada |
-| Fase 3 | Sesiones y eventos de partido | ⏳ Pendiente |
-| Fase 4 | Métricas derivadas (carga, estado, km) | ⏳ Pendiente |
+| Fase 3 | Sesiones y eventos de partido | ✅ Completada |
+| Fase 4 | Métricas derivadas (carga, estado, km) | ✅ Completada (parcial) |
 | Fase 5 | Funcionalidad faltante en backend | ⏳ Pendiente |
 | Fase 6 | IA y Vitrina | ⏳ Pendiente |
 
@@ -327,22 +327,53 @@ La vista dejó de usar `useTeam()` para squads y ahora usa `useSession()`.
 
 ---
 
-# ⏳ FASE 4 — Métricas Derivadas
+# ✅ FASE 4 — Métricas Derivadas
 
-**Estado:** Pendiente
+**Fecha:** Mayo 2026
+**Branch:** `feature/dashboard-interact-v1`
 
-**Qué se hará:**
-- Calcular `carga`, `km`, `sprints`, `vel`, `estado` desde `session_player_metrics` e `injuries`
-- Crear lógica de agregación en el frontend o solicitar endpoint de resumen al backend
+## Archivos modificados
 
-**Brechas identificadas (campos que el frontend usa pero el backend no tiene directamente):**
-| Campo frontend | Origen real en backend |
-|----------------|------------------------|
-| `player.km` | `session_player_metrics.total_distance_meters` (último período) |
-| `player.vel` | `session_player_metrics.max_speed_mps` × 3.6 (conversión a km/h) |
-| `player.sprints` | No existe — pendiente de definición |
-| `player.carga` | No existe — pendiente de definición |
-| `player.estado` | Derivado de `injuries.status` activo |
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/context/PlayerContext.jsx` | Modificado | Fetch injuries en paralelo al cargar roster + loadPlayerMeasurements |
+| `src/views/JugadoresView.jsx` | Modificado | Fix squads → useSession(), cargar mediciones al abrir perfil |
+
+## Qué se implementó
+
+### `estado` — derivado desde backend injuries
+Al cargar el roster, `PlayerContext` hace `GET /players/:id/injuries` para todos los jugadores en paralelo (`Promise.allSettled`). El estado se deriva así:
+
+| Backend `injury.status` | Frontend `estado` |
+|-------------------------|-------------------|
+| `injured` (al menos uno) | `lesion` |
+| `recovering` (al menos uno) | `alerta` |
+| Todos `recovered` o sin lesiones | `ok` |
+
+### Mediciones — carga lazy al abrir perfil
+`loadPlayerMeasurements(playerId)` hace `GET /players/:id/measurements` cuando el usuario abre el perfil de un jugador en `JugadoresView`. Actualiza:
+- `player.altura` → `heightCentimeters` de la medición más reciente
+- `player.peso` → `weightKilograms` de la medición más reciente
+- `player.anthropometrics` → historial completo de mediciones del backend
+
+### Fix aplicado: JugadoresView usaba useTeam() para squads
+`JugadoresView` usaba `useTeam()` para leer `squads`. Corregido a `useSession()`.
+
+## Endpoints consumidos
+
+| Método | Ruta | Propósito |
+|--------|------|-----------|
+| GET | `/api/v1/players/:id/injuries` | Derivar estado (en paralelo al cargar roster) |
+| GET | `/api/v1/players/:id/measurements` | Cargar mediciones al abrir perfil |
+
+## Brechas que quedan pendientes
+
+| Campo frontend | Causa | Fase |
+|----------------|-------|------|
+| `player.km` | No hay endpoint público para `session_player_metrics` | Fase 5 |
+| `player.vel` | Mismo origen — `max_speed_mps × 3.6` sin endpoint | Fase 5 |
+| `player.sprints` | No existe en el backend | Fase 5 |
+| `player.carga` | No existe en el backend | Fase 5 |
 
 ---
 

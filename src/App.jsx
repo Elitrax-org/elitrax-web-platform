@@ -16,10 +16,15 @@ import VitrinaView      from './views/VitrinaView'
 import PlaceholderView  from './views/PlaceholderView'
 
 function AppShell() {
-  const { user, logout, isAuth } = useUser()
+  const { user, isAuth, sessionReady } = useUser()
   const [section, setSection] = useState('dashboard')
 
-  const signout = () => { logout(); setSection('dashboard') }
+  // Mientras verifica si hay sesión activa muestra pantalla en blanco
+  if (!sessionReady) return (
+    <div style={{ width:'100vw', height:'100vh', background:T.bg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ fontFamily:'DM Sans, sans-serif', fontSize:13, color:'rgba(255,255,255,0.3)' }}>Cargando...</div>
+    </div>
+  )
 
   if (!isAuth) return <LoginPage />
 

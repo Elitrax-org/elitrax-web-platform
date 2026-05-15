@@ -3,7 +3,6 @@ import { T, glass } from '../tokens'
 import Logo from '../components/Logo'
 import { useUser } from '../context/UserContext'
 import { useToast } from '../context/ToastContext'
-import { USERS } from '../users'
 
 export default function LoginPage() {
   const { login } = useUser()
@@ -17,25 +16,30 @@ export default function LoginPage() {
     if (!email.trim())        return 'Ingresá tu correo'
     if (!email.includes('@')) return 'Correo inválido'
     if (!pass)                return 'Ingresá tu contraseña'
-    if (pass.length < 4)      return 'Mínimo 4 caracteres'
+    if (pass.length < 8)      return 'Mínimo 8 caracteres'
     return null
   }
 
-  const go = () => {
+  const go = async () => {
     const v = validate()
     if (v) { setErr(v); return }
     setErr('')
     setLoading(true)
-    setTimeout(() => {
-      const found = USERS.find(u => u.email === email.trim() && u.password === pass)
-      if (!found) {
-        setLoading(false)
+    try {
+      await login(email.trim(), pass)
+      toast.success('Inicio de sesión exitoso. Bienvenido.')
+    } catch (e) {
+      const status = e?.status
+      if (status === 401 || status === 400) {
         setErr('Credenciales incorrectas.')
-        return
+      } else if (status === 429) {
+        setErr('Demasiados intentos. Esperá un momento.')
+      } else {
+        setErr('No se pudo conectar con el servidor.')
       }
-      login(found)
-      toast.success(`Bienvenido, ${found.name}.`)
-    }, 900)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleKeyDown = e => { if (e.key === 'Enter') go() }

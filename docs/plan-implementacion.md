@@ -14,6 +14,7 @@
 | Fase 4 | Métricas derivadas (carga, estado, km) | ✅ Completada (parcial) |
 | Fase 5 | Funcionalidad faltante en backend | ✅ Completada (parcial) |
 | Fase 6 | IA y Vitrina | ✅ Completada |
+| Fix login | Auto-onboarding en modo dev/in-memory | ✅ Completado |
 
 ---
 
@@ -491,3 +492,67 @@ La vista ahora consume `usePlayer()` en lugar del array `VP` hardcodeado de `dat
 | `player.km`, `player.vel`, `player.sprints`, `player.carga` | Sin endpoint público `session_player_metrics` → vitrina muestra 0 |
 | `player.saltos`, `player.distSprint` | No existen en el backend |
 | IA con jugadores locales (IDs no UUID) | Falls back a simulación local |
+
+---
+
+# ✅ FIX — Auto-onboarding en Login (modo dev/in-memory)
+
+**Fecha:** Mayo 2026
+**Branch:** `main` (commit `e16342b`)
+
+## Problema
+
+En modo dev (sin Supabase configurado), el backend genera un `userId` nuevo por sesión sin membresías. `GET /me` devolvía 401 inmediatamente después del login porque no existía ninguna cuenta asociada al usuario.
+
+## Solución
+
+- `src/lib/api.js`: nuevo módulo `onboarding.complete()` → `POST /onboarding` con datos mínimos válidos para crear la cuenta y membership inicial.
+- `src/context/UserContext.jsx`: `login()` ahora captura el 401 de `GET /me` post-login, llama automáticamente a `POST /onboarding` y reintenta `GET /me`. Transparente para el usuario.
+
+---
+
+# 📋 FASES PENDIENTES
+
+## Fase 7 — Dashboard con datos reales
+
+**Estado:** Pendiente
+
+**Qué se hará:**
+- Conectar `DashboardView` a datos reales de sesiones (`useSession()`), jugadores (`usePlayer()`) y métricas
+- Reemplazar contadores y gráficos hardcodeados por valores calculados desde el contexto real
+- Mostrar próximas sesiones, últimos eventos, estado del plantel
+
+**Archivos a modificar:**
+- `src/views/DashboardView.jsx`
+
+---
+
+## Fase 8 — Lesiones conectadas al backend
+
+**Estado:** Pendiente
+
+**Qué se hará:**
+- Conectar `addInjury` en `PlayerContext` a `POST /players/:id/injuries`
+- Conectar `closeInjury` a `PATCH /players/:id/injuries/:injuryId` (si el endpoint existe)
+- Leer el historial de lesiones desde el backend en lugar de localStorage
+- Sincronizar el `estado` del jugador en tiempo real desde el backend
+
+**Archivos a modificar:**
+- `src/context/PlayerContext.jsx`
+- `src/lib/api.js` (si faltan endpoints)
+
+---
+
+## Fase 9 — Comentarios de jugadores
+
+**Estado:** Pendiente
+
+**Qué se hará:**
+- Conectar la tab de notas/comentarios en `JugadoresView` a `GET /players/:id/comments` y `POST /players/:id/comments`
+- Mostrar comentarios reales del backend en el perfil del jugador
+- Guardar nuevos comentarios en el backend
+
+**Archivos a modificar:**
+- `src/context/PlayerContext.jsx`
+- `src/views/JugadoresView.jsx`
+- `src/lib/api.js` (ya tiene `players.comments.*`)

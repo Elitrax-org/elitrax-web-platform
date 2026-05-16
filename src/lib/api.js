@@ -100,6 +100,33 @@ export const teams = {
   },
 }
 
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+
+export const onboarding = {
+  /**
+   * POST /onboarding — crea cuenta inicial y membership para el usuario logueado.
+   * Necesario en modo dev/in-memory cuando el usuario no tiene ninguna cuenta aún.
+   * @param {{ displayName: string, email: string }} data
+   */
+  complete: (data) =>
+    request('/onboarding', {
+      method: 'POST',
+      body: JSON.stringify({
+        account: {
+          type: 'individual',
+          displayName: data.displayName || 'Mi Organización',
+          address: { countryCode: 'AR', city: 'Buenos Aires', line1: 'Sin dirección' },
+          contact: { email: data.email, phone: '+541100000000' },
+          billing: {
+            legalName: data.displayName || 'Mi Organización',
+            billingAddress: { countryCode: 'AR', city: 'Buenos Aires', line1: 'Sin dirección' },
+          },
+        },
+        subscription: { tier: 'pro', interval: 'monthly' },
+      }),
+    }),
+}
+
 // ─── IA ───────────────────────────────────────────────────────────────────────
 
 export const ai = {

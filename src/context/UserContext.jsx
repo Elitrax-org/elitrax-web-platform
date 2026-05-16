@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
-import { auth, me } from '../lib/api'
+import { auth, me, onboarding } from '../lib/api'
 
 const UserContext = createContext()
 
@@ -13,7 +13,7 @@ export function useUser() {
  */
 function normalizeUser(meResponse) {
   const { user, activeAccount } = meResponse
-  const fullName = user.fullName || user.email || 'Usuario'
+  const fullName = user.fullName || user.email || activeAccount?.id?.slice(0, 8) || 'Usuario'
   const initials = fullName
     .split(' ')
     .slice(0, 2)
@@ -53,7 +53,18 @@ export function UserProvider({ children }) {
    */
   const login = useCallback(async (email, password) => {
     await auth.login(email, password)
-    const data = await me.get()
+    let data
+    try {
+      data = await me.get()
+    } catch (e) {
+      // En modo dev/in-memory el usuario no tiene cuenta aún — completar onboarding automáticamente
+      if (e?.status === 401) {
+        await onboarding.complete({ email, displayName: email.split('@')[0] })
+        data = await me.get()
+      } else {
+        throw e
+      }
+    }
     setUser(normalizeUser(data))
   }, [])
 

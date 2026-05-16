@@ -1,4 +1,37 @@
+# dependencies
 node_modules/
-dist/
-.env
-.env.local
+
+# Next.js
+.next/
+out/
+
+# production
+build/
+
+# local environment
+.env*
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# test artifacts
+test-results/
+playwright-report/
+tsconfig.tsbuildinfo
+
+# local database backup artifacts
+.backups/
+
+# local sensitive project notes
+NO LEER.txt
+no leer.txt
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+!.vscode/extensions.json

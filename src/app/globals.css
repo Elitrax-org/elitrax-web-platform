@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+:root {
+  --background: #060E1A;
+  --bg1: #0A1628;
+  --bg2: #0D1E38;
+  --bg3: #112244;
+  --foreground: #e5e2e1;
+  --primary: #F36C3A;
+  --on-primary: #1c0e08;
+  --secondary: #46C7F0;
+  --tertiary: #185fa5;
+  --surface: #0A1628;
+  --surface-container: #0D1E38;
+  --surface-container-high: #112244;
+  --outline: #a98a80;
+  --outline-variant: #594139;
+  --error: #FF5B5B;
+  --success: #4ADE80;
+  --cian: #46C7F0;
+  --naranja: #F36C3A;
+  --cian-dim: rgba(70, 199, 240, 0.10);
+  --naranja-dim: rgba(243, 108, 58, 0.10);
+  --green-dim: rgba(74, 222, 128, 0.10);
+  --faint: rgba(255, 255, 255, 0.22);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-bg1: var(--bg1);
+  --color-bg2: var(--bg2);
+  --color-bg3: var(--bg3);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-secondary: var(--secondary);
+  --color-tertiary: var(--tertiary);
+  --color-surface: var(--surface);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-error: var(--error);
+  --color-success: var(--success);
+  --color-cian: var(--cian);
+  --color-naranja: var(--naranja);
+  --font-sans: var(--font-manrope);
+  --font-heading: var(--font-space-grotesk);
+  --font-label: var(--font-lexend);
+  --font-mono: var(--font-jetbrains-mono), "Cascadia Code", "Fira Code", monospace;
+
+  --animate-fade-up: fadeUp 0.35s ease both;
+  --animate-fade-in: fadeIn 0.3s ease both;
+  --animate-slide-in: slideIn 0.3s ease both;
+  --animate-pulse-slow: pulse 2s ease-in-out infinite;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-manrope), Arial, Helvetica, sans-serif;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  outline-color: var(--secondary);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--secondary) 35%, transparent);
+  color: var(--foreground);
+}
+
+/* ── Glassmorphism ── */
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); }
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

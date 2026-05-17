@@ -209,6 +209,17 @@ export const players = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+
+    /** PATCH /players/:id/injuries/:injuryId → Injury */
+    update: (playerId, injuryId, data) =>
+      request(`/players/${playerId}/injuries/${injuryId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+
+    /** DELETE /players/:id/injuries/:injuryId */
+    remove: (playerId, injuryId) =>
+      request(`/players/${playerId}/injuries/${injuryId}`, { method: 'DELETE' }),
   },
 
   measurements: {

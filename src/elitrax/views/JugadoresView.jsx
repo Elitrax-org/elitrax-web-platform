@@ -507,7 +507,7 @@ export default function JugadoresView() {
                             ) : (
                               <div>
                                 <Badge label="Activa" color={T.red} />
-                                <button onClick={() => closeInjury(p.id, inj.id)} style={{ display:'block', marginTop:6, padding:'4px 10px', borderRadius:6, border:`1px solid ${T.green}33`, background:'transparent', fontFamily:T.dm, fontSize:10, color:T.green, cursor:'pointer' }}>Cerrar</button>
+                                <button onClick={async () => { try { await closeInjury(p.id, inj.id) } catch(e) { toast.error(e?.message || 'No se pudo cerrar la lesión.') } }} style={{ display:'block', marginTop:6, padding:'4px 10px', borderRadius:6, border:`1px solid ${T.green}33`, background:'transparent', fontFamily:T.dm, fontSize:10, color:T.green, cursor:'pointer' }}>Cerrar</button>
                               </div>
                             )}
                           </div>
@@ -622,7 +622,7 @@ export default function JugadoresView() {
         {showForm && <PlayerFormModal sport={p.sport||'football'} player={editPlayer||p} onClose={() => { setShowForm(false); setEditPlayer(null) }} onSave={handleSavePlayer} />}
         {deleteId != null && <ConfirmDialog title="Eliminar jugador" message="¿Estás seguro?" onConfirm={handleDelete} onCancel={() => setDeleteId(null)} />}
         {showFiles && <PlayerFilesModal player={p} onClose={() => setShowFiles(false)} onSave={data => addFile(p.id, data)} onDelete={fileId => deleteFile(p.id, fileId)} />}
-        {showInjury && <PlayerInjuryModal player={p} onClose={() => setShowInjury(false)} onSave={data => addInjury(p.id, data)} />}
+        {showInjury && <PlayerInjuryModal player={p} onClose={() => setShowInjury(false)} onSave={async data => { try { await addInjury(p.id, data); setShowInjury(false); toast.success('Lesión registrada.') } catch(e) { toast.error(e?.message || 'No se pudo registrar la lesión.') } }} />}
         {showClub && <PlayerClubModal player={p} onClose={() => setShowClub(false)} onSave={data => addClub(p.id, data)} />}
         {showAnthropo && (
           <div onClick={() => setShowAnthropo(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:24, backdropFilter:'blur(4px)' }}>

@@ -584,17 +584,56 @@ Se corrigió la arquitectura de `PlayerContext`: los jugadores pertenecen al **c
 
 ## Fase 8 — Lesiones conectadas al backend
 
-**Estado:** Pendiente
+**Estado:** ✅ Completada
 
-**Qué se hará:**
-- Conectar `addInjury` en `PlayerContext` a `POST /players/:id/injuries`
-- Conectar `closeInjury` a `PATCH /players/:id/injuries/:injuryId` (si el endpoint existe)
-- Leer el historial de lesiones desde el backend en lugar de localStorage
-- Sincronizar el `estado` del jugador en tiempo real desde el backend
+**Fecha:** Mayo 2026
 
-**Archivos a modificar:**
-- `src/context/PlayerContext.jsx`
-- `src/lib/api.js` (si faltan endpoints)
+### Qué se implementó
+
+- `addInjury` → `POST /players/:id/injuries` (antes solo localStorage)
+- `closeInjury` → `PATCH /players/:id/injuries/:injuryId` con `status: 'recovered'`
+- Carga inicial: injuries del backend se guardan en `player.injuries` (no solo derivan estado)
+- Estado del jugador se actualiza en tiempo real al registrar/cerrar lesión
+- `api.js`: agregados `injuries.update()` e `injuries.remove()`
+
+### Mapeo de campos frontend → backend
+
+| Campo frontend | Campo backend | Observación |
+|----------------|---------------|-------------|
+| `type` (texto libre) | `description` | directo |
+| `zone` (lista español) | `bodyRegion` + `bodyZoneDetail` | mapeo aproximado (ver tabla abajo) |
+| `severity` (leve/moderado/grave) | `severity` (mild/moderate/severe) | mapeo directo |
+| `recoveryDays` (número) | `estimatedRecoveryAt` | hoy + N días en ISO |
+| `note` (texto) | `injuryComment` | requerido en backend; default "Sin nota" si vacío |
+| `date` (hoy) | `diagnosedAt` | ISO datetime |
+| (implícito) | `status` | siempre "injured" al crear |
+
+### Mapeo de zonas (workaround)
+
+Sin campo "lado" (izquierdo/derecho) en el formulario, todas las zonas de pierna/brazo se mapean al lado izquierdo como valor por defecto.
+
+| Zona frontend | bodyRegion | bodyZoneDetail |
+|---------------|------------|----------------|
+| Isquiotibiales / Cuádriceps / Recto femoral | leftLeg | 2 (thigh) |
+| Gemelo / Sóleo | leftLeg | 16 (calf) |
+| Aductor / Abductor | leftLeg | 1 (hip) |
+| Tobillo | leftLeg | 32 (ankle) |
+| Rodilla | leftLeg | 4 (knee) |
+| Hombro | leftArm | 1 (shoulder) |
+| Muñeca | leftArm | 16 (wrist) |
+| Espalda baja | lowerBack | 4 |
+| Cervical | head | 8 (neck) |
+| Otro | lowerBack | 0 |
+
+### Gaps — lo que requeriría cambios en el backend para alineación completa
+
+| Gap | Descripción | Cambio necesario en backend |
+|-----|-------------|----------------------------|
+| Sin campo lateral | El formulario no distingue izq/der; todas las lesiones de pierna/brazo se guardan como "left" | Agregar campo `side: 'left' \| 'right' \| 'bilateral'` al schema y al formulario frontend |
+| `injuryComment` → Comment | La nota de la lesión se guarda como un Comment separado, no en el objeto Injury; no se puede leer al volver a cargar | Agregar campo `note` (o `lastComment`) al response de `GET /injuries` |
+| `zone` no se recupera | Al leer lesiones del backend, `zone` siempre queda vacío (no se puede revertir bodyRegion+bodyZoneDetail al texto en español) | Agregar campo `zoneName` libre al schema de Injury o devolver bodyRegion traducido |
+| `recoveryDays` calculado | Se calcula como diferencia entre diagnosedAt y estimatedRecoveryAt; puede perder precisión si la fecha se edita | Sin cambio necesario (workaround aceptable) |
+| Sin `DELETE /injuries` en uso | Endpoint existe en backend pero no se usa en el frontend (no hay botón de eliminar lesión) | Agregar botón "Eliminar" en UI cuando se quiera |
 
 ---
 

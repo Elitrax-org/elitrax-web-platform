@@ -40,12 +40,73 @@ function saveLocal(data) {
 }
 
 // ─── Deriva estado del jugador desde injuries del backend ────────────────────
-// Backend injury.status: 'injured' | 'recovering' | 'recovered'
 function deriveEstado(injuries) {
   if (!injuries || injuries.length === 0) return 'ok'
   if (injuries.some(i => i.status === 'injured'))    return 'lesion'
   if (injuries.some(i => i.status === 'recovering')) return 'alerta'
   return 'ok'
+}
+
+// ─── Mapeo zona frontend → bodyRegion + bodyZoneDetail del backend ────────────
+// bodyZoneDetail usa bitmask: thigh=2, knee=4, shin=8, calf=16, ankle=32, foot=64,
+// hip=1, shoulder=1, wrist=16, lowerBack(zone3)=4, neck(zone4)=8
+// NOTA: sin distinción izq/der — se mapea a leftLeg/leftArm por defecto.
+// Para distinción lateral se necesita campo "lado" en el formulario (pendiente backend).
+const ZONE_MAP = {
+  'Isquiotibiales': { bodyRegion: 'leftLeg',  bodyZoneDetail: 2  }, // thigh
+  'Cuádriceps':     { bodyRegion: 'leftLeg',  bodyZoneDetail: 2  }, // thigh
+  'Gemelo':         { bodyRegion: 'leftLeg',  bodyZoneDetail: 16 }, // calf
+  'Sóleo':          { bodyRegion: 'leftLeg',  bodyZoneDetail: 16 }, // calf
+  'Recto femoral':  { bodyRegion: 'leftLeg',  bodyZoneDetail: 2  }, // thigh
+  'Aductor':        { bodyRegion: 'leftLeg',  bodyZoneDetail: 1  }, // hip
+  'Abductor':       { bodyRegion: 'leftLeg',  bodyZoneDetail: 1  }, // hip
+  'Tobillo':        { bodyRegion: 'leftLeg',  bodyZoneDetail: 32 }, // ankle
+  'Rodilla':        { bodyRegion: 'leftLeg',  bodyZoneDetail: 4  }, // knee
+  'Hombro':         { bodyRegion: 'leftArm',  bodyZoneDetail: 1  }, // shoulder
+  'Muñeca':         { bodyRegion: 'leftArm',  bodyZoneDetail: 16 }, // wrist
+  'Espalda baja':   { bodyRegion: 'lowerBack', bodyZoneDetail: 4 }, // lowerBack
+  'Cervical':       { bodyRegion: 'head',     bodyZoneDetail: 8  }, // neck
+  'Otro':           { bodyRegion: 'lowerBack', bodyZoneDetail: 0 },
+}
+const DEFAULT_BODY = { bodyRegion: 'lowerBack', bodyZoneDetail: 0 }
+
+const SEVERITY_TO_BACKEND = { leve: 'mild', moderado: 'moderate', grave: 'severe' }
+const SEVERITY_FROM_BACKEND = { mild: 'leve', moderate: 'moderado', severe: 'grave' }
+
+// ─── Backend Injury → shape del frontend ─────────────────────────────────────
+function fromBackendInjury(inj) {
+  const diagnosedMs  = new Date(inj.diagnosedAt).getTime()
+  const recoveryMs   = new Date(inj.estimatedRecoveryAt).getTime()
+  const recoveryDays = Math.round((recoveryMs - diagnosedMs) / 86400000)
+  return {
+    id:           inj.id,
+    date:         inj.diagnosedAt?.slice(0, 10) || '',
+    type:         inj.description || '',
+    severity:     SEVERITY_FROM_BACKEND[inj.severity] || inj.severity || 'leve',
+    zone:         '',   // no se puede revertir bodyRegion+bodyZoneDetail a zona en español
+    recoveryDays: recoveryDays > 0 ? recoveryDays : 0,
+    note:         '',   // injuryComment se guarda como Comment separado, no en Injury
+    closedAt:     inj.resolvedAt || '',
+    status:       inj.status,
+  }
+}
+
+// ─── Frontend injury → payload POST /injuries ─────────────────────────────────
+function toBackendInjury(injury) {
+  const body       = ZONE_MAP[injury.zone] || DEFAULT_BODY
+  const diagnosedAt = new Date().toISOString()
+  const days        = parseInt(injury.recoveryDays) || 7
+  const estimatedRecoveryAt = new Date(Date.now() + days * 86400000).toISOString()
+  return {
+    diagnosedAt,
+    status:              'injured',
+    estimatedRecoveryAt,
+    bodyRegion:          body.bodyRegion,
+    bodyZoneDetail:      body.bodyZoneDetail,
+    severity:            SEVERITY_TO_BACKEND[injury.severity] || 'mild',
+    description:         injury.type   || undefined,
+    injuryComment:       injury.note   || 'Sin nota',
+  }
 }
 
 // ─── Backend PlayerMeasurement → entrada de anthropometrics ──────────────────
@@ -116,14 +177,19 @@ export function PlayerProvider({ children }) {
       const base = (list || []).map(p => fromBackend(p, localData))
       setPlayers(base)
 
-      // Deriva estado desde injuries en paralelo
+      // Carga injuries del backend en paralelo: deriva estado y guarda historial
       const results = await Promise.allSettled(
         base.map(p => playersApi.injuries.list(p.id))
       )
       setPlayers(prev => prev.map((p, i) => {
         const r = results[i]
         if (r.status !== 'fulfilled') return p
-        return { ...p, estado: deriveEstado(r.value?.injuries) }
+        const backendInjuries = r.value?.injuries || []
+        return {
+          ...p,
+          estado:   deriveEstado(backendInjuries),
+          injuries: backendInjuries.map(fromBackendInjury),
+        }
       }))
     }
 
@@ -221,24 +287,31 @@ export function PlayerProvider({ children }) {
     ))
   }, [])
 
-  const addInjury = useCallback((playerId, injury) => {
+  const addInjury = useCallback(async (playerId, injury) => {
+    const created = await playersApi.injuries.create(playerId, toBackendInjury(injury))
+    const newInjury = fromBackendInjury(created)
     setPlayers(prev => prev.map(p =>
       p.id === playerId
-        ? { ...p, injuries: [...p.injuries, { ...injury, id: Date.now() }], estado: 'lesion' }
+        ? { ...p, injuries: [...p.injuries, newInjury], estado: 'lesion' }
         : p
     ))
   }, [])
 
-  const closeInjury = useCallback((playerId, injuryId) => {
-    setPlayers(prev => prev.map(p =>
-      p.id === playerId
-        ? {
-            ...p,
-            injuries: p.injuries.map(i => i.id === injuryId ? { ...i, closedAt: new Date().toISOString() } : i),
-            estado: p.injuries.some(i => i.id !== injuryId && !i.closedAt) ? 'lesion' : 'ok',
-          }
-        : p
-    ))
+  const closeInjury = useCallback(async (playerId, injuryId) => {
+    await playersApi.injuries.update(playerId, injuryId, {
+      status:      'recovered',
+      resolvedAt:  new Date().toISOString(),
+      injuryComment: 'Lesión cerrada desde la app',
+    })
+    setPlayers(prev => prev.map(p => {
+      if (p.id !== playerId) return p
+      const updatedInjuries = p.injuries.map(i =>
+        i.id === injuryId
+          ? { ...i, closedAt: new Date().toISOString(), status: 'recovered' }
+          : i
+      )
+      return { ...p, injuries: updatedInjuries, estado: deriveEstado(updatedInjuries) }
+    }))
   }, [])
 
   const addFile = useCallback((playerId, file) => {

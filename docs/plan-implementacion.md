@@ -22,6 +22,77 @@
 
 ---
 
+## Arquitectura del proyecto — Dónde está cada cosa
+
+El proyecto es un **monorepo unificado Next.js 16**. Todo vive en una sola carpeta `elitrax-web-platform/`. Dentro de `src/` conviven el frontend del producto y el backend API.
+
+```
+elitrax-web-platform/
+├── prisma/                   ← Schema de base de datos (Prisma + Supabase)
+├── public/                   ← Assets estáticos
+├── scripts/                  ← Scripts de utilidad (seeds, migraciones, etc.)
+├── supabase/                 ← Configuración de Supabase local
+├── docs/                     ← Documentación (este archivo)
+└── src/
+    ├── elitrax/              ← 🖥️  FRONTEND — SPA React (el producto Elitrax)
+    │   ├── App.jsx           ←     Raíz del SPA (router, providers)
+    │   ├── tokens.js         ←     Design tokens (colores, tipografía)
+    │   ├── index.css         ←     Estilos globales del SPA
+    │   ├── context/          ←     Contextos React (UserContext, TeamContext, PlayerContext, SessionContext)
+    │   ├── views/            ←     Vistas/páginas (DashboardView, JugadoresView, MiEquipoView, etc.)
+    │   ├── components/       ←     Componentes UI del SPA (modales, cards, gráficos, etc.)
+    │   └── lib/
+    │       └── api.js        ←     Cliente HTTP centralizado → llama a /api/v1/*
+    │
+    ├── app/
+    │   ├── api/v1/           ← 🔧  BACKEND — 31 endpoints REST (Next.js Route Handlers)
+    │   │   ├── auth/         ←     Login, logout
+    │   │   ├── me/           ←     Perfil del usuario autenticado
+    │   │   ├── players/      ←     CRUD jugadores + injuries + measurements + comments
+    │   │   ├── teams/        ←     CRUD equipos + roster
+    │   │   ├── sessions/     ←     Sesiones de entrenamiento/partido + events
+    │   │   ├── ai/           ←     Recomendaciones de alineación por IA
+    │   │   └── onboarding/   ←     Creación de cuenta inicial
+    │   ├── elitrax/
+    │   │   └── page.jsx      ←     Entry point Next.js que monta el SPA React
+    │   ├── [locale]/         ←     UI Next.js con Tailwind (plataforma externa, no el SPA)
+    │   └── layout.tsx        ←     Layout raíz Next.js (fuentes Exo 2 + DM Sans)
+    │
+    ├── application/          ← 🔧  BACKEND — Casos de uso / servicios de aplicación
+    ├── domain/               ← 🔧  BACKEND — Entidades y reglas de negocio
+    ├── infrastructure/       ← 🔧  BACKEND — Repositorios, Supabase, Prisma, adaptadores
+    ├── features/             ← 🔧  BACKEND — Módulos por feature (auth, players, teams, etc.)
+    ├── i18n/                 ← 🔧  BACKEND — Internacionalización (en/es)
+    ├── components/           ←     UI Next.js — Componentes Tailwind (plataforma externa)
+    └── lib/                  ←     Utilidades compartidas del proyecto Next.js
+```
+
+### Regla de navegación rápida
+
+| Quiero tocar... | Voy a... |
+| --------------- | -------- |
+| Una vista del producto (dashboard, jugadores, equipo) | `src/elitrax/views/` |
+| Un componente del SPA (modal, card, tabla) | `src/elitrax/components/` |
+| Estado global del SPA (jugadores, sesiones, usuario) | `src/elitrax/context/` |
+| Llamadas a la API desde el frontend | `src/elitrax/lib/api.js` |
+| Un endpoint del backend | `src/app/api/v1/` |
+| Lógica de negocio del backend | `src/application/` o `src/domain/` |
+| Base de datos / Supabase | `src/infrastructure/` + `prisma/` |
+
+### Cómo se conectan frontend y backend
+
+```
+src/elitrax/lib/api.js
+  → fetch('/api/v1/players', ...)   ← mismo origen, sin CORS
+  → src/app/api/v1/players/route.ts ← Next.js Route Handler
+  → src/application/...             ← caso de uso
+  → src/infrastructure/...          ← repositorio (Supabase / in-memory en dev)
+```
+
+No hay proxy ni servidor separado. El SPA corre en el mismo `localhost:3000` que el backend Next.js.
+
+---
+
 # ✅ FASE 1 — Autenticación Real
 
 **Fecha:** Mayo 2026

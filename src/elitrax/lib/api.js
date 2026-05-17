@@ -195,6 +195,10 @@ export const players = {
     return request(`/players${q ? `?${q}` : ''}`)
   },
 
+  /** POST /players → Player */
+  create: (data) =>
+    request('/players', { method: 'POST', body: JSON.stringify(data) }),
+
   injuries: {
     /** GET /players/:id/injuries → { injuries: Injury[] } */
     list: (playerId) => request(`/players/${playerId}/injuries`),

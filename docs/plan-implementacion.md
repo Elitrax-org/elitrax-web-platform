@@ -15,6 +15,8 @@
 | Fase 5 | Funcionalidad faltante en backend | ✅ Completada (parcial) |
 | Fase 6 | IA y Vitrina | ✅ Completada |
 | Fix login | Auto-onboarding en modo dev/in-memory | ✅ Completado |
+| Fusión backend | Web platform-api fusionado en elitrax-web-platform | ✅ Completada |
+| Fase 7 | Dashboard con datos reales + fix arquitectura jugadores | ✅ Completada |
 
 ---
 
@@ -511,19 +513,72 @@ En modo dev (sin Supabase configurado), el backend genera un `userId` nuevo por 
 
 ---
 
-# 📋 FASES PENDIENTES
+# ✅ FUSIÓN BACKEND — Web platform-api → elitrax-web-platform
 
-## Fase 7 — Dashboard con datos reales
+**Fecha:** Mayo 2026
+**Branch:** `feat/fusion-nextjs` → mergeado a `main`
 
-**Estado:** Pendiente
+## Qué se hizo
 
-**Qué se hará:**
-- Conectar `DashboardView` a datos reales de sesiones (`useSession()`), jugadores (`usePlayer()`) y métricas
-- Reemplazar contadores y gráficos hardcodeados por valores calculados desde el contexto real
-- Mostrar próximas sesiones, últimos eventos, estado del plantel
+Se unificaron ambos proyectos en uno solo bajo `elitrax-web-platform`:
+- Eliminados archivos Vite (`vite.config.js`, `index.html`, `dist/`)
+- Copiado todo el código de `Web platform-api` (Next.js 16, Prisma, Supabase, 31 endpoints, arquitectura DDD)
+- SPA React movida a `src/elitrax/` y servida desde `src/app/elitrax/page.jsx` como Client Component
+- `Web platform-api` quedó como proyecto redundante (puede eliminarse)
 
-**Archivos a modificar:**
-- `src/views/DashboardView.jsx`
+## Beneficios
+- Un solo proceso: frontend + backend en `localhost:3000`
+- Sin CORS, sin proxy, sin doble `npm run dev`
+- `BASE = '/api/v1'` en `api.js` funciona igual (mismo origen)
+
+---
+
+# ✅ FASE 7 — Dashboard con datos reales
+
+**Fecha:** Mayo 2026
+**Branch:** `main`
+
+## Qué se implementó
+
+### DashboardView — datos reales
+- **Tabla de jugadores**: plantel real desde `usePlayer()` (nombre, posición, dorsal, estado)
+- **Banner de alertas**: jugadores reales con lesión o sobrecarga
+- **KPI cards**: Total jugadores / Total sesiones / En sobrecarga / Lesionados (todos reales)
+- **"Última sesión"** en header: fecha y tipo de la sesión más reciente real
+- **Últimas sesiones**: lista real de partidos y entrenamientos
+- **Estado del plantel**: distribución real (disponibles / sobrecarga / lesionados)
+- **Gráfico semanal**: sesiones reales por día en los últimos 7 días
+
+### Fix arquitectura de jugadores (crítico)
+Se corrigió la arquitectura de `PlayerContext`: los jugadores pertenecen al **club** (cuenta), no a un equipo específico.
+
+**Flujo correcto:**
+1. Crear jugadores → pertenecen al club automáticamente
+2. Todos los jugadores forman el plantel del club
+3. El equipo se crea aparte (en Mi Equipo) con esos jugadores
+
+**Cambios técnicos:**
+| Antes | Después |
+|-------|---------|
+| Carga: `GET /teams/:id/players` (requería teamId) | Carga: `GET /players` (nivel cuenta) |
+| Crear: `POST /teams/:id/players/create-and-assign` | Crear: `POST /players` |
+| `fromBackend` leía objeto anidado `{ player: {...} }` | `fromBackend` lee objeto plano `Player` |
+| Sin teamId → jugadores no cargaban | Sin teamId → funciona correctamente |
+| Número de dorsal en backend (TeamPlayer.jerseyNumber) | Número de dorsal en localStorage |
+
+**Archivos modificados:**
+| Archivo | Cambio |
+|---------|--------|
+| `src/elitrax/views/DashboardView.jsx` | Reescrito con datos reales |
+| `src/elitrax/context/PlayerContext.jsx` | Reescrito para usar `GET/POST /players` |
+| `src/elitrax/lib/api.js` | Agregado `players.create()` |
+| `src/elitrax/views/JugadoresView.jsx` | `handleSavePlayer` con await + manejo de errores |
+
+## Lo que sigue en 0 (sin endpoint backend)
+| Campo | Causa |
+|-------|-------|
+| `player.km`, `player.vel`, `player.sprints`, `player.carga` | No hay endpoint `session_player_metrics` |
+| Gráfico "Distancia semanal" → muestra sesiones por día | Sin agregación de distancia en backend |
 
 ---
 

@@ -99,15 +99,19 @@ export default function JugadoresView() {
     return evs.sort((a, b) => (b.minute || 0) - (a.minute || 0))
   }
 
-  const handleSavePlayer = data => {
-    if (editPlayer) {
-      updatePlayer(editPlayer.id, data)
-      toast.success('Jugador actualizado.')
-    } else {
-      addPlayer(data)
-      toast.success('Jugador agregado.')
+  const handleSavePlayer = async data => {
+    try {
+      if (editPlayer) {
+        await updatePlayer(editPlayer.id, data)
+        toast.success('Jugador actualizado.')
+      } else {
+        await addPlayer(data)
+        toast.success('Jugador agregado.')
+      }
+      setShowForm(false); setEditPlayer(null)
+    } catch (err) {
+      toast.error(err?.message || 'No se pudo guardar el jugador.')
     }
-    setShowForm(false); setEditPlayer(null)
   }
 
   const handleDelete = () => {
